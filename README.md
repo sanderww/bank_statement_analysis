@@ -3,7 +3,37 @@ to create t
 PYTHONPATH=src python -m bank_statement_analysis.main --all --output "/Users/sanderwiersma/Documents/dev_projects/bank_statement_analysis/transactions.csv"
 
 
-## 2. How to Run from Project Root
+## 1. Quick Start (Makefile)
+
+The easiest way to run the project is using the provided `Makefile`.
+
+```bash
+# 1. Install dependencies
+make install
+
+# 2. Extract data from PDFs (Use Case 1)
+make extract
+# Output: transactions.csv
+
+# 3. Categorise data via LLM (Use Case 2)
+# Processes all files by default, or specify FILES="..."
+make categorize-llm
+# Output: models/training_data/{YYYY-MM-DD}_transactions_categorised.csv
+
+# 4. Train model with extracted data (Use Case 3)
+make train
+# Output: models/transactions_classifier.joblib
+
+# 5. Categorise new bank statements with local model (Use Case 4)
+# Processes all files by default
+make categorize-local
+
+# Or specify specific files (use single quotes for paths with spaces)
+make categorize-local FILES="'path/to/file 1.pdf' 'path/to/file 2.pdf'"
+# Output: output/{YYYY-MM-DD}_transactions_categorised_local.csv
+```
+
+## 2. How to Run from Project Root (Manual)
 
 ### Without Installing (Works Reliably)
 

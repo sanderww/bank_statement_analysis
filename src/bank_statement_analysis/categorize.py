@@ -56,18 +56,12 @@ class CategorizedTransaction(Transaction):
     category_label: str
 
 
-def _build_system_prompt() -> str:
-    return (
-        "You are a helpful financial categorization assistant. "
-        "Given a bank transaction with description and amount, assign one of the following categories strictly as an integer 1..9: "
-        "1 Housing & Utilities; 2 Groceries & Household; 3 Childcare & Education; 4 Transport; 5 Health & Insurance; "
-        "6 Food & Dining; 7 Clothing & Personal Care; 8 Leisure & Entertainment; 9 Financial & Miscellaneous; 0. Unknown"
-        """No that:
-- "Fhps Fees" are school fees
-- "Miway" is car insurance
-- "Jicamasalariwie8508" is salary"""
-        "try to pute all transactions in a category but make sure that to mark transaction as unknown if it's its too hard to categorise "
-    )
+def _build_system_prompt(version: str = "v1") -> str:
+    project_root = Path(__file__).parent.parent.parent
+    prompt_path = project_root / "prompts" / f"{version}.txt"
+    if not prompt_path.exists():
+        raise FileNotFoundError(f"Prompt file not found: {prompt_path}")
+    return prompt_path.read_text().strip()
 
 
 def _json_schema_for_model() -> dict:
@@ -98,17 +92,18 @@ def _json_schema_for_model() -> dict:
     }
 
 
-def categorize_transactions(transactions: List[Transaction], model: str = "gpt-5-mini") -> List[CategorizedTransaction]:
+def categorize_transactions(transactions: List[Transaction], model: str = "gpt-5-mini", prompt_version: str = "v1") -> List[CategorizedTransaction]:
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
         raise RuntimeError("OPENAI_API_KEY not set")
 
     client = OpenAI(api_key=api_key)
-    logger.info("Initialized OpenAI client; preparing to categorize %d transactions with model '%s'", len(transactions), model)
+    logger.info("Initialized OpenAI client; preparing to categorize %d transactions with model '%s' and prompt '%s'", len(transactions), model, prompt_version)
 
     categorized: List[CategorizedTransaction] = []
+    system_prompt = _build_system_prompt(prompt_version)
+
     for tx in transactions:
-        system_prompt = _build_system_prompt()
         user_content = (
             "Transaction JSON follows. Return a fully populated CategorizedTransaction.\n" +
             tx.model_dump_json()

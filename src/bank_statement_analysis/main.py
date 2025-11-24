@@ -12,14 +12,14 @@ from .io_utils import write_csv
 app = typer.Typer(help="Extract transactions from FNB PDF statements and export to CSV.")
 
 
-def _gather_pdfs(single_pdf: Optional[Path], all_: bool) -> list[Path]:
+def _gather_pdfs(input_pdfs: Optional[list[Path]], all_: bool) -> list[Path]:
     project_root = Path(__file__).parent.parent.parent
     statements_dir = project_root / "bank_statements"
     pdfs: list[Path] = []
     if all_:
         pdfs.extend(sorted(statements_dir.glob("*.pdf")))
-    if single_pdf is not None:
-        pdfs.append(single_pdf)
+    if input_pdfs:
+        pdfs.extend(input_pdfs)
     # Deduplicate while preserving order
     deduped: list[Path] = []
     seen = set()
@@ -34,16 +34,17 @@ def _gather_pdfs(single_pdf: Optional[Path], all_: bool) -> list[Path]:
 
 @app.command()
 def run(
-    pdf: Optional[Path] = typer.Option(None, help="Path to a single PDF to process"),
+    files: Optional[list[Path]] = typer.Argument(None, help="Specific PDF files to process"),
     all: bool = typer.Option(False, "--all/--no-all", help="Process all PDFs in bank_statements/"),
     output: Path = typer.Option(Path("transactions.csv"), help="Output CSV path"),
     append: bool = typer.Option(False, "--append/--no-append", help="Append to CSV if exists"),
     categorize: bool = typer.Option(False, "--categorize/--no-categorize", help="Add category"),
     categorize_mode: str = typer.Option("openai", help="Categorization mode: 'openai' or 'local'"),
     model: str = typer.Option("o4-mini", help="OpenAI model for categorization (when mode=openai)"),
+    prompt_version: str = typer.Option("v1", help="Version of the system prompt to use (e.g. 'v1')"),
     local_model_path: Path = typer.Option(Path("models/transactions_classifier.joblib"), help="Path to local model (when mode=local)"),
 ):
-    pdfs = _gather_pdfs(pdf, all)
+    pdfs = _gather_pdfs(files, all)
     if not pdfs:
         typer.echo("No PDFs to process.")
         raise typer.Exit(code=1)
@@ -77,7 +78,7 @@ def run(
         if categorize_mode.lower() == "local":
             categorized = categorize_transactions_local(tx_models, model_path=local_model_path)
         elif categorize_mode.lower() == "openai":
-            categorized = categorize_transactions(tx_models, model=model)
+            categorized = categorize_transactions(tx_models, model=model, prompt_version=prompt_version)
         else:
             raise typer.BadParameter("categorize_mode must be 'openai' or 'local'")
         # Merge category back
