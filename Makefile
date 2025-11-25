@@ -28,3 +28,23 @@ train:
 
 categorize-local:
 	uv run bank-statement-analysis $(if $(FILES),$(FILES),--all) --categorize --categorize-mode local --output "output/$(DATE)_transactions_categorised_local.csv"
+
+BRANCH := $(shell git rev-parse --abbrev-ref HEAD)
+
+deploy:
+	@if [ "$(BRANCH)" != "dev" ]; then \
+		echo "❌ You must be on the 'dev' branch (current: $(BRANCH))"; \
+		exit 1; \
+	fi
+
+	@if [ -z "$(m)" ]; then \
+		echo "❌ Please provide a commit message using m=\"your message\""; \
+		exit 1; \
+	fi
+
+	git add .
+	git commit -m "$(m)"
+
+	git checkout main
+	git merge dev
+	git checkout dev
