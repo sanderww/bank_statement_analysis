@@ -26,7 +26,7 @@ NUMBER_PATTERN = r"-?[\d,]+\.\d{2}(?:\s?[CcDd][Rr])?"
 ROW_RE = re.compile(
     rf"(?P<date>{DATE_PATTERN})\s+"
     rf"(?P<desc>.+?)\s+" 
-    rf"(?P<amount>{NUMBER_PATTERN})\s+"
+    rf"(?P<amount>{NUMBER_PATTERN})\s*"
     rf"(?P<balance>{NUMBER_PATTERN})",
     re.IGNORECASE
 )

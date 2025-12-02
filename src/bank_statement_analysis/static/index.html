@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bank Statement Analysis</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-50 text-gray-900 min-h-screen p-6 md:p-12">
+
+    <div class="max-w-4xl mx-auto">
+        <header class="mb-10">
+            <h1 class="text-3xl font-bold text-gray-900 tracking-tight">Bank Statement Analysis</h1>
+            <p class="text-gray-500 mt-2">Manage your bank statements, extract data, and categorize transactions.</p>
+        </header>
+
+        <main class="space-y-12">
+            <!-- SECTION 1: PDF PROCESSING -->
+            <section>
+                <div class="flex items-center gap-3 mb-6">
+                    <div
+                        class="bg-blue-100 text-blue-700 font-bold rounded-full w-8 h-8 flex items-center justify-center">
+                        1</div>
+                    <h2 class="text-xl font-bold text-gray-900">Process New Statements (PDFs)</h2>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                    <div class="grid md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-gray-100">
+                        <!-- PDF List -->
+                        <div class="md:col-span-2 p-6">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="font-semibold text-gray-700">Select PDFs</h3>
+                                <button onclick="loadFiles()"
+                                    class="text-sm text-blue-600 hover:text-blue-700 font-medium">Refresh</button>
+                            </div>
+                            <div id="file-list" class="space-y-2 max-h-60 overflow-y-auto pr-2 mb-4 min-h-[150px]">
+                                <p class="text-gray-400 text-sm italic">Loading files...</p>
+                            </div>
+                            <div class="pt-2 border-t border-gray-100 flex items-center gap-3">
+                                <input type="checkbox" id="select-all-pdfs"
+                                    class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                    onchange="toggleSelectAll(this, 'files')">
+                                <label for="select-all-pdfs"
+                                    class="text-sm text-gray-600 font-medium cursor-pointer">Select All</label>
+                            </div>
+                        </div>
+
+                        <!-- PDF Actions -->
+                        <div class="p-6 flex flex-col justify-center bg-gray-50/30 space-y-6">
+                            <!-- Option A -->
+                            <div>
+                                <h3 class="font-semibold text-gray-800 mb-2">Option A: Extract Only</h3>
+                                <p class="text-xs text-gray-500 mb-3">Convert PDF to CSV. Saves to <code
+                                        class="bg-gray-100 px-1 rounded">output/extracted_raw</code>.</p>
+                                <button onclick="runExtraction()"
+                                    class="w-full py-2.5 px-4 bg-white border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors shadow-sm text-sm">
+                                    Extract to CSV
+                                </button>
+                            </div>
+
+                            <!-- Option B -->
+                            <div>
+                                <h3 class="font-semibold text-gray-800 mb-2">Option B: Extract & Categorize</h3>
+                                <p class="text-xs text-gray-500 mb-3">Convert and categorize immediately.</p>
+                                <div class="space-y-2">
+                                    <button onclick="runCategorization('local')"
+                                        class="w-full py-2.5 px-4 bg-indigo-50 text-indigo-700 border border-indigo-100 font-medium rounded-lg hover:bg-indigo-100 transition-colors text-sm">
+                                        Local Model
+                                    </button>
+                                    <button onclick="runCategorization('openai')"
+                                        class="w-full py-2.5 px-4 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 shadow-sm transition-colors text-sm">
+                                        OpenAI LLM
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECTION 2: CSV PROCESSING -->
+            <section>
+                <div class="flex items-center gap-3 mb-6">
+                    <div
+                        class="bg-indigo-100 text-indigo-700 font-bold rounded-full w-8 h-8 flex items-center justify-center">
+                        2</div>
+                    <h2 class="text-xl font-bold text-gray-900">Categorize Extracted Data (CSVs)</h2>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                    <div class="grid md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-gray-100">
+                        <!-- CSV List -->
+                        <div class="md:col-span-2 p-6">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="font-semibold text-gray-700">Select Raw CSVs</h3>
+                                <button onclick="loadCsvFiles()"
+                                    class="text-sm text-blue-600 hover:text-blue-700 font-medium">Refresh</button>
+                            </div>
+                            <div id="csv-list" class="space-y-2 max-h-60 overflow-y-auto pr-2 mb-4 min-h-[150px]">
+                                <p class="text-gray-400 text-sm italic">Loading CSV files...</p>
+                            </div>
+                            <div class="pt-2 border-t border-gray-100 flex items-center gap-3">
+                                <input type="checkbox" id="select-all-csvs"
+                                    class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                    onchange="toggleSelectAll(this, 'csv-files')">
+                                <label for="select-all-csvs"
+                                    class="text-sm text-gray-600 font-medium cursor-pointer">Select
+                                    All</label>
+                            </div>
+                        </div>
+
+                        <!-- CSV Actions -->
+                        <div class="p-6 flex flex-col justify-center bg-gray-50/30">
+                            <h3 class="font-semibold text-gray-800 mb-2">Categorize Selection</h3>
+                            <p class="text-xs text-gray-500 mb-6">Apply categorization to selected CSVs. Saves to <code
+                                    class="bg-gray-100 px-1 rounded">output/categorised</code>.</p>
+                            <div class="space-y-3">
+                                <button onclick="runCsvCategorization('local')"
+                                    class="w-full py-2.5 px-4 bg-indigo-50 text-indigo-700 border border-indigo-100 font-medium rounded-lg hover:bg-indigo-100 transition-colors text-sm">
+                                    Use Local Model
+                                </button>
+                                <button onclick="runCsvCategorization('openai')"
+                                    class="w-full py-2.5 px-4 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 shadow-sm transition-colors text-sm">
+                                    Use OpenAI LLM
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Output/Status Section -->
+            <section id="status-section" class="hidden bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">Status</h3>
+                <div id="status-content"
+                    class="text-sm text-gray-600 font-mono bg-gray-50 p-4 rounded-lg border border-gray-200 whitespace-pre-wrap">
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        async function loadFiles() {
+            const listEl = document.getElementById('file-list');
+            listEl.innerHTML = '<p class="text-gray-400 text-sm italic">Loading files...</p>';
+
+            try {
+                const res = await fetch('/api/files');
+                const data = await res.json();
+
+                if (data.files.length === 0) {
+                    listEl.innerHTML = '<p class="text-gray-500 text-sm">No PDF files found in bank_statements folder.</p>';
+                    return;
+                }
+
+                listEl.innerHTML = data.files.map(file => `
+                    <div class="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-lg transition-colors">
+                        <input type="checkbox" name="files" value="${file}" id="file-${file}" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 h-4 w-4">
+                        <label for="file-${file}" class="text-sm text-gray-700 cursor-pointer flex-grow select-none">${file}</label>
+                    </div>
+                `).join('');
+            } catch (err) {
+                listEl.innerHTML = `<p class="text-red-500 text-sm">Error loading files: ${err.message}</p>`;
+            }
+        }
+
+        async function loadCsvFiles() {
+            const listEl = document.getElementById('csv-list');
+            listEl.innerHTML = '<p class="text-gray-400 text-sm italic">Loading CSV files...</p>';
+
+            try {
+                const res = await fetch('/api/csv-files');
+                const data = await res.json();
+
+                if (data.files.length === 0) {
+                    listEl.innerHTML = '<p class="text-gray-500 text-sm">No CSV files found in output/extracted_raw.</p>';
+                    return;
+                }
+
+                listEl.innerHTML = data.files.map(file => `
+                    <div class="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-lg transition-colors">
+                        <input type="checkbox" name="csv-files" value="${file}" id="csv-${file}" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 h-4 w-4">
+                        <label for="csv-${file}" class="text-sm text-gray-700 cursor-pointer flex-grow select-none">${file}</label>
+                    </div>
+                `).join('');
+            } catch (err) {
+                listEl.innerHTML = `<p class="text-red-500 text-sm">Error loading CSV files: ${err.message}</p>`;
+            }
+        }
+
+        function getSelectedFiles() {
+            const checkboxes = document.querySelectorAll('input[name="files"]:checked');
+            return Array.from(checkboxes).map(cb => cb.value);
+        }
+
+        function getSelectedCsvFiles() {
+            const checkboxes = document.querySelectorAll('input[name="csv-files"]:checked');
+            return Array.from(checkboxes).map(cb => cb.value);
+        }
+
+        function toggleSelectAll(source, name) {
+            const checkboxes = document.querySelectorAll(`input[name="${name}"]`);
+            for (var i = 0, n = checkboxes.length; i < n; i++) {
+                checkboxes[i].checked = source.checked;
+            }
+        }
+
+        function showStatus(message, isError = false) {
+            const section = document.getElementById('status-section');
+            const content = document.getElementById('status-content');
+            section.classList.remove('hidden');
+            content.textContent = message;
+            content.className = `text-sm font-mono p-4 rounded-lg border whitespace-pre-wrap ${isError ? 'bg-red-50 text-red-700 border-red-200' : 'bg-gray-50 text-gray-600 border-gray-200'}`;
+        }
+
+        async function runExtraction() {
+            const files = getSelectedFiles();
+            if (files.length === 0) {
+                alert('Please select at least one PDF file.');
+                return;
+            }
+
+            showStatus('Extracting... please wait.');
+
+            try {
+                const res = await fetch('/api/extract', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ files })
+                });
+                const data = await res.json();
+
+                if (!res.ok) throw new Error(data.detail || 'Extraction failed');
+
+                showStatus(`Success!\n${data.message}\nSaved to: ${data.output_file}`);
+                loadCsvFiles(); // Refresh CSV list
+            } catch (err) {
+                showStatus(`Error: ${err.message}`, true);
+            }
+        }
+
+        async function runCategorization(mode) {
+            const files = getSelectedFiles();
+            if (files.length === 0) {
+                alert('Please select at least one PDF file.');
+                return;
+            }
+
+            showStatus(`Categorizing PDFs (${mode})... please wait.`);
+
+            try {
+                const res = await fetch('/api/categorize', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ files, mode })
+                });
+                const data = await res.json();
+
+                if (!res.ok) throw new Error(data.detail || 'Categorization failed');
+
+                showStatus(`Success!\n${data.message}\nSaved to: ${data.output_file}`);
+            } catch (err) {
+                showStatus(`Error: ${err.message}`, true);
+            }
+        }
+
+        async function runCsvCategorization(mode) {
+            const files = getSelectedCsvFiles();
+            if (files.length === 0) {
+                alert('Please select at least one CSV file.');
+                return;
+            }
+
+            showStatus(`Categorizing CSVs (${mode})... please wait.`);
+
+            try {
+                const res = await fetch('/api/categorize', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ files, mode })
+                });
+                const data = await res.json();
+
+                if (!res.ok) throw new Error(data.detail || 'Categorization failed');
+
+                showStatus(`Success!\n${data.message}\nSaved to: ${data.output_file}`);
+            } catch (err) {
+                showStatus(`Error: ${err.message}`, true);
+            }
+        }
+
+        // Initial load
+        loadFiles();
+        loadCsvFiles();
+    </script>
+</body>
+
+</html>

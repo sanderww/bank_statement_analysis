@@ -23,3 +23,12 @@ def write_csv(rows: Iterable[dict], output_path: str, include_category: bool, ap
             writer.writerow({k: r.get(k, "") for k in fieldnames})
 
 
+
+def read_csv(path: str) -> list[dict]:
+    p = Path(path)
+    if not p.exists():
+        raise FileNotFoundError(f"CSV file not found: {path}")
+    
+    with p.open("r", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        return list(reader)

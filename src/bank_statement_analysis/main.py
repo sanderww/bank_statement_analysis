@@ -4,9 +4,9 @@ from typing import Optional
 
 import typer
 
-from .extract import extract_transactions_from_pdf
-from .categorize import Transaction, categorize_transactions, categorize_transactions_local
+
 from .io_utils import write_csv
+from .services import extract_data, categorize_data
 
 
 app = typer.Typer(help="Extract transactions from FNB PDF statements and export to CSV.")
@@ -58,33 +58,20 @@ def run(
         today = date.today().strftime("%Y-%m-%d")
         output = output_dir / f"{today}_output_transactions_{mode}.csv"
 
-    all_rows: list[dict] = []
-    for p in pdfs:
-        typer.echo(f"Extracting from {p} …")
-        rows = extract_transactions_from_pdf(str(p))
-        all_rows.extend(rows)
+    all_rows = extract_data(pdfs)
 
     if categorize and all_rows:
         typer.echo(f"Categorizing ({categorize_mode}) …")
-        tx_models = [
-            Transaction(**{
-                "date": r["date"],
-                "description": r["description"],
-                "amount": float(r["amount"]),
-                "balance": float(r["balance"]),
-            })
-            for r in all_rows
-        ]
-        if categorize_mode.lower() == "local":
-            categorized = categorize_transactions_local(tx_models, model_path=local_model_path)
-        elif categorize_mode.lower() == "openai":
-            categorized = categorize_transactions(tx_models, model=model, prompt_version=prompt_version)
-        else:
-            raise typer.BadParameter("categorize_mode must be 'openai' or 'local'")
-        # Merge category back
-        for i, c in enumerate(categorized):
-            all_rows[i]["category"] = int(c.category)
-            all_rows[i]["category_label"] = c.category_label
+        try:
+            categorize_data(
+                all_rows, 
+                mode=categorize_mode, 
+                model=model, 
+                prompt_version=prompt_version, 
+                local_model_path=local_model_path
+            )
+        except ValueError as e:
+            raise typer.BadParameter(str(e))
 
     write_csv(all_rows, str(output), include_category=categorize, append=append)
     typer.echo(f"Wrote {len(all_rows)} rows → {output}")

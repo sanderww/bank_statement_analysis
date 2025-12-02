@@ -13,12 +13,10 @@ help:
 	@echo "  make train             - Train local model using models/training_data/transactions_categorised_training.csv"
 	@echo "  make categorize-local  - Extract and categorize using the local trained model"
 	@echo "                           Usage: make categorize-local FILES=\"'path/to/file 1.pdf' 'path/to/file 2.pdf'\""
-
-install:
-	uv sync
-
+start-server:
+	uv run uvicorn bank_statement_analysis.server:app --reload
 extract:
-	uv run bank-statement-analysis --all --output "transactions.csv"
+	uv run bank-statement-analysis $(if $(FILES),$(FILES),--all) --output "output/$(DATE)_transactions.csv"
 
 categorize-llm:
 	uv run bank-statement-analysis $(if $(FILES),$(FILES),--all) --categorize --model gpt-5-nano --output "models/training_data/$(DATE)_transactions_categorised.csv"
@@ -31,7 +29,7 @@ categorize-local:
 
 BRANCH := $(shell git rev-parse --abbrev-ref HEAD)
 
-deploy:
+merge-to-main:
 	@if [ "$(BRANCH)" != "dev" ]; then \
 		echo "❌ You must be on the 'dev' branch (current: $(BRANCH))"; \
 		exit 1; \
