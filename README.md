@@ -1,102 +1,55 @@
-to create t
+# Bank Statement Analysis
 
-PYTHONPATH=src python -m bank_statement_analysis.main --all --output "/Users/sanderwiersma/Documents/dev_projects/bank_statement_analysis/transactions.csv"
+Manage your bank statements, extract data, and categorize transactions with ease. This tool supports PDF extraction and automated categorization using both OpenAI LLMs and local machine learning models.
 
+## 🚀 Getting Started
 
-## 1. Quick Start (Makefile)
-
-The easiest way to run the project is using the provided `Makefile`.
-
+### 1. Installation
+Ensure you have `uv` installed, then run:
 ```bash
-# 1. Install dependencies
 make install
-
-# 2. Extract data from PDFs (Use Case 1)
-make extract
-# Output: transactions.csv
-
-# 3. Categorise data via LLM (Use Case 2)
-# Processes all files by default, or specify FILES="..."
-make categorize-llm
-# Output: models/training_data/{YYYY-MM-DD}_transactions_categorised.csv
-
-# 4. Train model with extracted data (Use Case 3)
-make train
-# Output: models/transactions_classifier.joblib
-
-# 5. Categorise new bank statements with local model (Use Case 4)
-# Processes all files by default
-make categorize-local
-
-# Or specify specific files (use single quotes for paths with spaces)
-make categorize-local FILES="'path/to/file 1.pdf' 'path/to/file 2.pdf'"
-# Output: output/{YYYY-MM-DD}_transactions_categorised_local.csv
 ```
 
-## 2. How to Run from Project Root (Manual)
+### 2. Web Interface
+The tool features a 3-step workflow for managing your statements:
+1. **Process**: Extract data from PDF bank statements.
+2. **Categorize**: Classify transactions using OpenAI or a local model.
+3. **Visualise**: Review and analyze your categorized data.
 
-### Without Installing (Works Reliably)
-
+To start the UI:
 ```bash
-PYTHONPATH=src python -m bank_statement_analysis.main --all --output "/Users/sanderwiersma/Documents/dev_projects/bank_statement_analysis/transactions.csv"
+make start-server
 ```
+Once started, open [http://localhost:8000](http://localhost:8000) in your browser.
 
-#### Add Categorization
+![Web UI Screenshot](docs/images/ui_screenshot.png)
 
+## 🛠 Command Line Usage
+
+### Quick Actions (Makefile)
+- `make extract`: Batch extract PDFs to `output/`.
+- `make categorize-llm`: Automated categorization via OpenAI.
+- `make train`: Train the local ML model.
+- `make categorize-local`: Categorization using your local model.
+
+### Manual Execution
 ```bash
-PYTHONPATH=src python -m bank_statement_analysis.main --all --categorize --model gpt-5-mini --output "/Users/sanderwiersma/Documents/dev_projects/bank_statement_analysis/transactions_categorised.csv"
+# Basic Extraction
+PYTHONPATH=src python -m bank_statement_analysis.main --all
+
+# Categorization (OpenAI)
+PYTHONPATH=src python -m bank_statement_analysis.main --all --categorize --model gpt-4o-mini
+
+# Local Model Training
+PYTHONPATH=src python -m bank_statement_analysis.train_model
+
+# Local Categorization
+PYTHONPATH=src python -m bank_statement_analysis.main --all --categorize --categorize-mode local
 ```
 
-### Using CLI Name (after `uv sync`)
-
-```bash
-bank-statement-analysis --all --output "/Users/sanderwiersma/Documents/dev_projects/bank_statement_analysis/transactions.csv"
-```
-
-```bash
-bank-statement-analysis --all --categorize --model o4-mini --output "/Users/sanderwiersma/Documents/dev_projects/bank_statement_analysis/transactions_categorised.csv"
-```
-
-> **Note:**  
-> Omit the `run` subcommand; your current CLI uses root-level options.
-
-### Train a Local Categorization Model
-
-Use the labeled CSV (`models/training_data/transactions_categorised_training.csv`) to train a local scikit-learn model.
-
-Without installing:
-```bash
-PYTHONPATH=src python -m bank_statement_analysis.train_model --output models/transactions_classifier.joblib
-```
-
-Using the CLI name (after `uv sync`):
-```bash
-uv run train-transactions-model --output models/transactions_classifier.joblib
-```
-
-To use a different training CSV file:
-```bash
-PYTHONPATH=src python -m bank_statement_analysis.train_model --csv path/to/your/training.csv --output models/transactions_classifier.joblib
-```
-
-Optional flags:
-- `--ngram-max 2` (TF-IDF n-grams)
-- `--C 2.0` (LogReg regularization inverse)
-- `--max-iter 1000`
-
-### Categorize Using the Local Model
-
-Without installing:
-```bash
-PYTHONPATH=src python -m bank_statement_analysis.main --all --categorize --categorize-mode local --output "/Users/sanderwiersma/Documents/dev_projects/bank_statement_analysis/transactions_categorised.csv"
-```
-
-Using the CLI name (after `uv sync`):
-```bash
-bank-statement-analysis --all --categorize --categorize-mode local --output "/Users/sanderwiersma/Documents/dev_projects/bank_statement_analysis/transactions_categorised.csv"
-```
-
-If your model is saved elsewhere, pass its path:
-```bash
-bank-statement-analysis --all --categorize --categorize-mode local --local-model-path path/to/transactions_classifier.joblib
-```
+## 📂 Project Structure
+- `bank_statements/`: Place your input PDF files here.
+- `output/`: Extracted CSVs and categorized data.
+- `models/`: Trained local models and training data.
+- `src/`: Core Python source code.
+- `src/bank_statement_analysis/static/`: Web UI components.
