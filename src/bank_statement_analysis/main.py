@@ -40,9 +40,8 @@ def run(
     append: bool = typer.Option(False, "--append/--no-append", help="Append to CSV if exists"),
     categorize: bool = typer.Option(False, "--categorize/--no-categorize", help="Add category"),
     categorize_mode: str = typer.Option("openai", help="Categorization mode: 'openai' or 'local'"),
-    model: str = typer.Option("o4-mini", help="OpenAI model for categorization (when mode=openai)"),
-    prompt_version: str = typer.Option(config.DEFAULT_PROMPT_VERSION, help="Version of the system prompt to use (e.g. 'v2')"),
-    local_model_path: Path = typer.Option(Path("models/transactions_classifier.joblib"), help="Path to local model (when mode=local)"),
+    model: str = typer.Option(config.DEFAULT_OPENAI_MODEL, help="OpenAI model for categorization (when mode=openai)"),
+    prompt_version: Optional[str] = typer.Option(None, help="Prompt version (e.g. 'v2'); defaults to the active version in settings"),
 ):
     pdfs = _gather_pdfs(files, all)
     if not pdfs:
@@ -63,11 +62,10 @@ def run(
         typer.echo(f"Categorizing ({categorize_mode}) …")
         try:
             categorize_data(
-                all_rows, 
-                mode=categorize_mode, 
-                model=model, 
-                prompt_version=prompt_version, 
-                local_model_path=local_model_path
+                all_rows,
+                mode=categorize_mode,
+                model=model,
+                prompt_version=prompt_version,
             )
         except ValueError as e:
             raise typer.BadParameter(str(e))

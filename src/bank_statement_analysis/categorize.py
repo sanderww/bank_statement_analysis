@@ -3,13 +3,8 @@ from typing import List
 
 from dotenv import load_dotenv
 from openai import OpenAI
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field
 import logging
-from pathlib import Path
-from typing import Optional
-
-import pandas as pd
-from joblib import load
 
 from . import config
 from .categories import CATEGORY_LABELS, Category
@@ -101,46 +96,6 @@ def categorize_transactions(
     return categorized
 
 
-def _default_local_model_path() -> Path:
-    return config.models_dir() / "transactions_classifier.joblib"
-
-
-def categorize_transactions_local(
-    transactions: List[Transaction],
-    model_path: Optional[Path] = None,
-) -> List[CategorizedTransaction]:
-    """
-    Categorize using a locally trained scikit-learn pipeline saved via joblib.
-    """
-    artifact_path = _default_local_model_path() if model_path is None else Path(model_path)
-    if not artifact_path.exists():
-        raise RuntimeError(f"Local model artifact not found at {artifact_path}. Train one with 'train-transactions-model train'.")
-
-    logger.info("Loading local categorization model from %s", artifact_path)
-    artifact = load(artifact_path)
-    pipe = artifact["pipeline"]
-    metadata = artifact.get("metadata", {})
-    category_labels = metadata.get("category_labels", {})
-
-    # Build inference dataframe
-    df = pd.DataFrame([t.model_dump() for t in transactions])
-    if "description" not in df or "amount" not in df:
-        raise ValidationError("Transactions must include 'description' and 'amount' fields.")
-
-    preds = pipe.predict(df[["description", "amount"]])
-    results: List[CategorizedTransaction] = []
-    for tx, cat_id in zip(transactions, preds):
-        try:
-            cat_enum = Category(int(cat_id))
-        except Exception:
-            cat_enum = Category.UNKNOWN
-        label = CATEGORY_LABELS.get(cat_enum, category_labels.get(int(cat_enum), str(int(cat_enum))))
-        results.append(
-            CategorizedTransaction(
-                **tx.model_dump(),
-                category=cat_enum,
-                category_label=label,
-            )
-        )
-    return results
+# Local-model categorisation lives in model_store.predict_rows (versioned
+# models with confidence); the OpenAI path above is the only LLM path.
 

@@ -2,11 +2,11 @@ import logging
 from pathlib import Path
 from typing import List, Optional, Dict, Any
 
-from . import config
+from . import config, model_store, prompt_store
 from .dedup import dedup_key
 from . import direction
 from .extract import extract_transactions_from_pdf
-from .categorize import Transaction, categorize_transactions, categorize_transactions_local
+from .categorize import Transaction, categorize_transactions
 
 logger = logging.getLogger(__name__)
 
@@ -108,17 +108,26 @@ def categorize_data(
     rows: List[Dict[str, Any]],
     mode: str = "openai",
     model: str = "gpt-5-mini",
-    prompt_version: str = config.DEFAULT_PROMPT_VERSION,
-    local_model_path: Optional[Path] = None
+    prompt_version: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     """
-    Categorizes the extracted transaction rows.
-    Updates the rows in-place (or returns them) with 'category' and 'category_label'.
+    Categorizes the extracted transaction rows in place: sets 'category',
+    'category_label', 'source' and (for the local model) 'confidence'.
+
+    Local mode uses the active model version (settings.json); OpenAI mode uses
+    the active prompt version unless one is given explicitly.
     """
     if not rows:
         return rows
 
-    # Convert to Transaction objects
+    if mode.lower() == "local":
+        # Rows from extract_data/load_csv_data always carry signed_amount.
+        model_store.predict_rows(rows)
+        return rows
+
+    if mode.lower() != "openai":
+        raise ValueError("categorize_mode must be 'openai' or 'local'")
+
     tx_models = [
         Transaction(
             date=r["date"],
@@ -128,18 +137,13 @@ def categorize_data(
         )
         for r in rows
     ]
-
-    if mode.lower() == "local":
-        categorized = categorize_transactions_local(tx_models, model_path=local_model_path)
-    elif mode.lower() == "openai":
-        categorized = categorize_transactions(tx_models, model=model, prompt_version=prompt_version)
-    else:
-        raise ValueError("categorize_mode must be 'openai' or 'local'")
+    version = prompt_version or prompt_store.active_version()
+    categorized = categorize_transactions(tx_models, model=model, prompt_version=version)
 
     # Merge category back
     for i, c in enumerate(categorized):
         rows[i]["category"] = int(c.category)
         rows[i]["category_label"] = c.category_label
-        rows[i]["source"] = mode.lower()
+        rows[i]["source"] = "openai"
 
     return rows
