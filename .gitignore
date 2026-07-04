@@ -5,10 +5,25 @@ build/
 dist/
 wheels/
 *.egg-info
+.pytest_cache/
 
 # Virtual environments
 .venv
 
 /arch
 /output
-/models/training_data
+
+# Personal financial data & anything derived from it — this repo is PUBLIC.
+# Statements, extracted/categorised CSVs, trained model artefacts (their TF-IDF
+# vocabulary embeds real transaction descriptions) and training data must never
+# be committed.
+/bank_statements
+/models
+
+# Machine-local app state (active prompt/model version, thresholds)
+/settings.json
+
+# Misc
+.DS_Store
+*.log
+.env
