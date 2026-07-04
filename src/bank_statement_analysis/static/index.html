@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bank Statement Analysis</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         body {
@@ -16,10 +17,11 @@
 
 <body class="bg-gray-50 text-gray-900 min-h-screen p-6 md:p-12">
 
-    <div class="max-w-4xl mx-auto">
+    <div class="max-w-6xl mx-auto">
         <header class="mb-10">
             <h1 class="text-3xl font-bold text-gray-900 tracking-tight">Bank Statement Analysis</h1>
-            <p class="text-gray-500 mt-2">Manage your bank statements, extract data, and categorize transactions.</p>
+            <p class="text-gray-500 mt-2">Extract, categorise, review and analyse your bank statements. The local
+                model improves as you review — promote reviewed statements to training data and retrain.</p>
         </header>
 
         <main class="space-y-12">
@@ -137,6 +139,202 @@
                 </div>
             </section>
 
+            <!-- SECTION 3: REVIEW -->
+            <section>
+                <div class="flex items-center gap-3 mb-6">
+                    <div
+                        class="bg-emerald-100 text-emerald-700 font-bold rounded-full w-8 h-8 flex items-center justify-center">
+                        3</div>
+                    <h2 class="text-xl font-bold text-gray-900">Review & Improve</h2>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                    <p class="text-xs text-gray-500 mb-4">Categorisation is never perfect. Load a categorised CSV,
+                        fix categories inline (low-confidence rows are highlighted), save, and — when you're happy —
+                        add the statement to the training data so the local model learns from it.</p>
+
+                    <div class="flex flex-wrap items-end gap-3 mb-5">
+                        <div>
+                            <label class="block text-xs font-medium text-gray-500 mb-1">Categorised file</label>
+                            <select id="review-file"
+                                class="border border-gray-300 rounded-lg text-sm py-2 px-3 bg-white min-w-[280px]"></select>
+                        </div>
+                        <button onclick="loadReview()"
+                            class="py-2 px-4 bg-emerald-600 text-white font-medium rounded-lg hover:bg-emerald-700 text-sm shadow-sm">Load</button>
+                        <button onclick="loadReviewFiles()"
+                            class="py-2 px-3 text-sm text-blue-600 hover:text-blue-700 font-medium">Refresh list</button>
+                    </div>
+
+                    <!-- Filters + actions (hidden until a file is loaded) -->
+                    <div id="review-controls" class="hidden">
+                        <div class="flex flex-wrap items-end gap-3 mb-4 pb-4 border-b border-gray-100">
+                            <div class="flex-grow max-w-xs">
+                                <label class="block text-xs font-medium text-gray-500 mb-1">Search description</label>
+                                <input id="review-search" type="text" oninput="renderReviewTable()"
+                                    placeholder="e.g. grocer"
+                                    class="w-full border border-gray-300 rounded-lg text-sm py-2 px-3">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-500 mb-1">Category</label>
+                                <select id="review-filter-category" onchange="renderReviewTable()"
+                                    class="border border-gray-300 rounded-lg text-sm py-2 px-3 bg-white">
+                                    <option value="all">All</option>
+                                    <option value="uncategorised">Uncategorised</option>
+                                </select>
+                            </div>
+                            <label class="flex items-center gap-2 text-sm text-gray-600 pb-2 cursor-pointer">
+                                <input id="review-low-conf" type="checkbox" onchange="renderReviewTable()"
+                                    class="rounded border-gray-300 text-amber-500 focus:ring-amber-400">
+                                Low-confidence only
+                            </label>
+                            <div class="flex-grow"></div>
+                            <button onclick="saveReview()"
+                                class="py-2 px-4 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 text-sm shadow-sm">Save
+                                changes</button>
+                            <button onclick="promoteReview()"
+                                class="py-2 px-4 bg-emerald-50 text-emerald-700 border border-emerald-200 font-medium rounded-lg hover:bg-emerald-100 text-sm">Add
+                                to training data</button>
+                        </div>
+
+                        <p id="review-summary" class="text-xs text-gray-500 mb-3"></p>
+
+                        <div class="overflow-x-auto max-h-[520px] overflow-y-auto border border-gray-100 rounded-lg">
+                            <table class="min-w-full text-sm">
+                                <thead class="bg-gray-50 sticky top-0">
+                                    <tr class="text-left text-xs text-gray-500 uppercase tracking-wide">
+                                        <th class="py-2.5 px-3">Date</th>
+                                        <th class="py-2.5 px-3">Description</th>
+                                        <th class="py-2.5 px-3 text-right">Amount</th>
+                                        <th class="py-2.5 px-3">Dir</th>
+                                        <th class="py-2.5 px-3">Category</th>
+                                        <th class="py-2.5 px-3">Source</th>
+                                        <th class="py-2.5 px-3 text-right">Conf</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="review-tbody" class="divide-y divide-gray-100"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECTION 4: INSIGHTS -->
+            <section>
+                <div class="flex items-center gap-3 mb-6">
+                    <div
+                        class="bg-violet-100 text-violet-700 font-bold rounded-full w-8 h-8 flex items-center justify-center">
+                        4</div>
+                    <h2 class="text-xl font-bold text-gray-900">Insights</h2>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                    <p class="text-xs text-gray-500 mb-4">Pick one or more categorised (ideally reviewed) files to see
+                        where the money goes.</p>
+
+                    <div class="flex flex-wrap items-start gap-3 mb-5">
+                        <div id="insights-files" class="space-y-1 max-h-40 overflow-y-auto pr-2 min-w-[280px]">
+                            <p class="text-gray-400 text-sm italic">No categorised files yet.</p>
+                        </div>
+                        <button onclick="loadInsights()"
+                            class="py-2 px-4 bg-violet-600 text-white font-medium rounded-lg hover:bg-violet-700 text-sm shadow-sm">Show
+                            insights</button>
+                    </div>
+
+                    <div id="insights-content" class="hidden">
+                        <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6" id="insights-metrics"></div>
+                        <div class="grid md:grid-cols-2 gap-6 items-start">
+                            <div>
+                                <h3 class="font-semibold text-gray-700 text-sm mb-2">Costs by category</h3>
+                                <canvas id="chart-costs" height="240"></canvas>
+                            </div>
+                            <div>
+                                <h3 class="font-semibold text-gray-700 text-sm mb-2">Income vs costs per month</h3>
+                                <canvas id="chart-months" height="240"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECTION 5: SETUP -->
+            <section>
+                <div class="flex items-center gap-3 mb-6">
+                    <div
+                        class="bg-gray-200 text-gray-700 font-bold rounded-full w-8 h-8 flex items-center justify-center">
+                        ⚙</div>
+                    <h2 class="text-xl font-bold text-gray-900">Setup — Prompts, Models & Settings</h2>
+                </div>
+
+                <div class="grid md:grid-cols-2 gap-6">
+                    <!-- Prompts -->
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                        <div class="flex justify-between items-center mb-2">
+                            <h3 class="font-semibold text-gray-800">Categorisation prompts</h3>
+                            <span id="prompts-active" class="text-xs text-gray-500"></span>
+                        </div>
+                        <p class="text-xs text-gray-500 mb-4">Versioned prompts for the OpenAI categorisation. The
+                            active version is used by default.</p>
+                        <div id="prompts-list" class="space-y-2 mb-4 max-h-64 overflow-y-auto"></div>
+                        <details class="border-t border-gray-100 pt-3">
+                            <summary class="text-sm font-medium text-blue-600 cursor-pointer">New prompt version</summary>
+                            <textarea id="prompt-new-text" rows="8"
+                                class="w-full mt-3 border border-gray-300 rounded-lg text-sm p-3 font-mono"
+                                placeholder="Prompt text..."></textarea>
+                            <button onclick="createPrompt()"
+                                class="mt-2 py-2 px-4 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 text-sm">Save
+                                as new version</button>
+                        </details>
+                    </div>
+
+                    <!-- Models -->
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                        <div class="flex justify-between items-center mb-2">
+                            <h3 class="font-semibold text-gray-800">Local models</h3>
+                            <span id="models-active" class="text-xs text-gray-500"></span>
+                        </div>
+                        <p class="text-xs text-gray-500 mb-4">Versioned local models, trained from the curated
+                            training data below. Training happens offline on this machine.</p>
+                        <div id="models-list" class="space-y-2 mb-4 max-h-52 overflow-y-auto"></div>
+
+                        <div class="border-t border-gray-100 pt-4">
+                            <div class="flex justify-between items-center mb-1">
+                                <h4 class="text-sm font-semibold text-gray-700">Training data</h4>
+                                <button onclick="trainModel()"
+                                    class="py-1.5 px-3 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 text-sm">Train
+                                    new version</button>
+                            </div>
+                            <p class="text-xs text-gray-500 mb-2">Grown deliberately from reviewed statements
+                                (section 3 → “Add to training data”).</p>
+                            <div id="training-data-stats" class="text-sm text-gray-600"></div>
+                        </div>
+                    </div>
+
+                    <!-- Settings -->
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 md:col-span-2">
+                        <h3 class="font-semibold text-gray-800 mb-4">Settings</h3>
+                        <div class="flex flex-wrap items-end gap-6">
+                            <div>
+                                <label class="block text-xs font-medium text-gray-500 mb-1">Low-confidence threshold
+                                    (<span id="threshold-value">—</span>)</label>
+                                <input id="setting-threshold" type="range" min="0" max="1" step="0.05"
+                                    oninput="document.getElementById('threshold-value').textContent = this.value"
+                                    class="w-56 accent-blue-600">
+                                <p class="text-xs text-gray-400 mt-1">Model predictions below this are flagged in
+                                    review.</p>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-medium text-gray-500 mb-1">OpenAI model</label>
+                                <input id="setting-openai-model" type="text"
+                                    class="border border-gray-300 rounded-lg text-sm py-2 px-3 w-56">
+                            </div>
+                            <button onclick="saveSettings()"
+                                class="py-2 px-4 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 text-sm">Save
+                                settings</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
             <!-- Output/Status Section -->
             <section id="status-section" class="hidden bg-white rounded-xl shadow-sm border border-gray-100 p-6">
                 <h3 class="text-lg font-semibold text-gray-800 mb-4">Status</h3>
@@ -148,69 +346,27 @@
     </div>
 
     <script>
-        async function loadFiles() {
-            const listEl = document.getElementById('file-list');
-            listEl.innerHTML = '<p class="text-gray-400 text-sm italic">Loading files...</p>';
+        // ------------------------------------------------------------------
+        // Shared state
+        // ------------------------------------------------------------------
+        let CATEGORIES = [];          // [{code, label}]
+        let reviewRows = [];          // rows of the loaded review file
+        let reviewFilename = null;
+        let reviewThreshold = 0.7;
+        let chartCosts = null;
+        let chartMonths = null;
 
-            try {
-                const res = await fetch('/api/files');
-                const data = await res.json();
-
-                if (data.files.length === 0) {
-                    listEl.innerHTML = '<p class="text-gray-500 text-sm">No PDF files found in bank_statements folder.</p>';
-                    return;
-                }
-
-                listEl.innerHTML = data.files.map(file => `
-                    <div class="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-lg transition-colors">
-                        <input type="checkbox" name="files" value="${file}" id="file-${file}" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 h-4 w-4">
-                        <label for="file-${file}" class="text-sm text-gray-700 cursor-pointer flex-grow select-none">${file}</label>
-                    </div>
-                `).join('');
-            } catch (err) {
-                listEl.innerHTML = `<p class="text-red-500 text-sm">Error loading files: ${err.message}</p>`;
-            }
+        function esc(s) {
+            return String(s ?? '').replace(/[&<>"']/g, c => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            })[c]);
         }
 
-        async function loadCsvFiles() {
-            const listEl = document.getElementById('csv-list');
-            listEl.innerHTML = '<p class="text-gray-400 text-sm italic">Loading CSV files...</p>';
-
-            try {
-                const res = await fetch('/api/csv-files');
-                const data = await res.json();
-
-                if (data.files.length === 0) {
-                    listEl.innerHTML = '<p class="text-gray-500 text-sm">No CSV files found in output/extracted_raw.</p>';
-                    return;
-                }
-
-                listEl.innerHTML = data.files.map(file => `
-                    <div class="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-lg transition-colors">
-                        <input type="checkbox" name="csv-files" value="${file}" id="csv-${file}" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 h-4 w-4">
-                        <label for="csv-${file}" class="text-sm text-gray-700 cursor-pointer flex-grow select-none">${file}</label>
-                    </div>
-                `).join('');
-            } catch (err) {
-                listEl.innerHTML = `<p class="text-red-500 text-sm">Error loading CSV files: ${err.message}</p>`;
-            }
-        }
-
-        function getSelectedFiles() {
-            const checkboxes = document.querySelectorAll('input[name="files"]:checked');
-            return Array.from(checkboxes).map(cb => cb.value);
-        }
-
-        function getSelectedCsvFiles() {
-            const checkboxes = document.querySelectorAll('input[name="csv-files"]:checked');
-            return Array.from(checkboxes).map(cb => cb.value);
-        }
-
-        function toggleSelectAll(source, name) {
-            const checkboxes = document.querySelectorAll(`input[name="${name}"]`);
-            for (var i = 0, n = checkboxes.length; i < n; i++) {
-                checkboxes[i].checked = source.checked;
-            }
+        async function fetchJSON(url, opts) {
+            const res = await fetch(url, opts);
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) throw new Error(data.detail || `Request failed (${res.status})`);
+            return data;
         }
 
         function showStatus(message, isError = false) {
@@ -221,85 +377,392 @@
             content.className = `text-sm font-mono p-4 rounded-lg border whitespace-pre-wrap ${isError ? 'bg-red-50 text-red-700 border-red-200' : 'bg-gray-50 text-gray-600 border-gray-200'}`;
         }
 
-        async function runExtraction() {
-            const files = getSelectedFiles();
-            if (files.length === 0) {
-                alert('Please select at least one PDF file.');
-                return;
-            }
-
-            showStatus('Extracting... please wait.');
-
+        // ------------------------------------------------------------------
+        // Section 1 & 2: file lists + extract/categorise
+        // ------------------------------------------------------------------
+        async function loadFiles() {
+            const listEl = document.getElementById('file-list');
+            listEl.innerHTML = '<p class="text-gray-400 text-sm italic">Loading files...</p>';
             try {
-                const res = await fetch('/api/extract', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                const data = await fetchJSON('/api/files');
+                if (data.files.length === 0) {
+                    listEl.innerHTML = '<p class="text-gray-500 text-sm">No PDF files found in bank_statements folder.</p>';
+                    return;
+                }
+                listEl.innerHTML = data.files.map(file => `
+                    <div class="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-lg transition-colors">
+                        <input type="checkbox" name="files" value="${esc(file)}" id="file-${esc(file)}" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 h-4 w-4">
+                        <label for="file-${esc(file)}" class="text-sm text-gray-700 cursor-pointer flex-grow select-none">${esc(file)}</label>
+                    </div>
+                `).join('');
+            } catch (err) {
+                listEl.innerHTML = `<p class="text-red-500 text-sm">Error loading files: ${esc(err.message)}</p>`;
+            }
+        }
+
+        async function loadCsvFiles() {
+            const listEl = document.getElementById('csv-list');
+            listEl.innerHTML = '<p class="text-gray-400 text-sm italic">Loading CSV files...</p>';
+            try {
+                const data = await fetchJSON('/api/csv-files');
+                if (data.files.length === 0) {
+                    listEl.innerHTML = '<p class="text-gray-500 text-sm">No CSV files found in output/extracted_raw.</p>';
+                    return;
+                }
+                listEl.innerHTML = data.files.map(file => `
+                    <div class="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-lg transition-colors">
+                        <input type="checkbox" name="csv-files" value="${esc(file)}" id="csv-${esc(file)}" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500 h-4 w-4">
+                        <label for="csv-${esc(file)}" class="text-sm text-gray-700 cursor-pointer flex-grow select-none">${esc(file)}</label>
+                    </div>
+                `).join('');
+            } catch (err) {
+                listEl.innerHTML = `<p class="text-red-500 text-sm">Error loading CSV files: ${esc(err.message)}</p>`;
+            }
+        }
+
+        function getSelected(name) {
+            return Array.from(document.querySelectorAll(`input[name="${name}"]:checked`)).map(cb => cb.value);
+        }
+
+        function toggleSelectAll(source, name) {
+            document.querySelectorAll(`input[name="${name}"]`).forEach(cb => cb.checked = source.checked);
+        }
+
+        async function runExtraction() {
+            const files = getSelected('files');
+            if (files.length === 0) { alert('Please select at least one PDF file.'); return; }
+            showStatus('Extracting... please wait.');
+            try {
+                const data = await fetchJSON('/api/extract', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ files })
                 });
-                const data = await res.json();
-
-                if (!res.ok) throw new Error(data.detail || 'Extraction failed');
-
                 showStatus(`Success!\n${data.message}\nSaved to: ${data.output_file}`);
-                loadCsvFiles(); // Refresh CSV list
-            } catch (err) {
-                showStatus(`Error: ${err.message}`, true);
-            }
+                loadCsvFiles();
+            } catch (err) { showStatus(`Error: ${err.message}`, true); }
         }
 
         async function runCategorization(mode) {
-            const files = getSelectedFiles();
-            if (files.length === 0) {
-                alert('Please select at least one PDF file.');
-                return;
-            }
-
-            showStatus(`Categorizing PDFs (${mode})... please wait.`);
-
-            try {
-                const res = await fetch('/api/categorize', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ files, mode })
-                });
-                const data = await res.json();
-
-                if (!res.ok) throw new Error(data.detail || 'Categorization failed');
-
-                showStatus(`Success!\n${data.message}\nSaved to: ${data.output_file}`);
-            } catch (err) {
-                showStatus(`Error: ${err.message}`, true);
-            }
+            const files = getSelected('files');
+            if (files.length === 0) { alert('Please select at least one PDF file.'); return; }
+            await categorize(files, mode, 'PDFs');
         }
 
         async function runCsvCategorization(mode) {
-            const files = getSelectedCsvFiles();
-            if (files.length === 0) {
-                alert('Please select at least one CSV file.');
-                return;
-            }
+            const files = getSelected('csv-files');
+            if (files.length === 0) { alert('Please select at least one CSV file.'); return; }
+            await categorize(files, mode, 'CSVs');
+        }
 
-            showStatus(`Categorizing CSVs (${mode})... please wait.`);
-
+        async function categorize(files, mode, kind) {
+            showStatus(`Categorizing ${kind} (${mode})... please wait.`);
             try {
-                const res = await fetch('/api/categorize', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                const data = await fetchJSON('/api/categorize', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ files, mode })
                 });
-                const data = await res.json();
+                showStatus(`Success!\n${data.message}\nSaved to: ${data.output_file}\n\nNext: review it in section 3.`);
+                loadReviewFiles();
+            } catch (err) { showStatus(`Error: ${err.message}`, true); }
+        }
 
-                if (!res.ok) throw new Error(data.detail || 'Categorization failed');
+        // ------------------------------------------------------------------
+        // Section 3: Review
+        // ------------------------------------------------------------------
+        async function loadCategories() {
+            const data = await fetchJSON('/api/categories');
+            CATEGORIES = data.categories;
+            const filterSel = document.getElementById('review-filter-category');
+            CATEGORIES.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.code;
+                opt.textContent = `${c.code} — ${c.label}`;
+                filterSel.appendChild(opt);
+            });
+        }
 
-                showStatus(`Success!\n${data.message}\nSaved to: ${data.output_file}`);
-            } catch (err) {
-                showStatus(`Error: ${err.message}`, true);
-            }
+        async function loadReviewFiles() {
+            try {
+                const data = await fetchJSON('/api/categorised-files');
+                const sel = document.getElementById('review-file');
+                sel.innerHTML = data.files.length
+                    ? data.files.map(f => `<option value="${esc(f)}">${esc(f)}</option>`).join('')
+                    : '<option value="">No categorised files yet</option>';
+                renderInsightsFileList(data.files);
+            } catch (err) { /* silent: section simply stays empty */ }
+        }
+
+        async function loadReview() {
+            const filename = document.getElementById('review-file').value;
+            if (!filename) { alert('No categorised file selected.'); return; }
+            try {
+                const data = await fetchJSON(`/api/review/${encodeURIComponent(filename)}`);
+                reviewRows = data.rows;
+                reviewFilename = data.filename;
+                reviewThreshold = data.confidence_threshold ?? 0.7;
+                document.getElementById('review-controls').classList.remove('hidden');
+                renderReviewTable();
+            } catch (err) { showStatus(`Error: ${err.message}`, true); }
+        }
+
+        function categorySelectHTML(row) {
+            const opts = ['<option value="">—</option>'].concat(CATEGORIES.map(c =>
+                `<option value="${c.code}" ${row.category === c.code ? 'selected' : ''}>${c.code} — ${esc(c.label)}</option>`));
+            return `<select data-row="${row.row}" onchange="onCategoryEdit(this)"
+                class="border border-gray-300 rounded-md text-xs py-1 px-2 bg-white max-w-[210px]">${opts.join('')}</select>`;
+        }
+
+        function onCategoryEdit(sel) {
+            const row = reviewRows.find(r => r.row === Number(sel.dataset.row));
+            if (!row) return;
+            row.category = sel.value === '' ? null : Number(sel.value);
+            row.source = 'user';
+            row.confidence = null;   // user override needs no flag
+            renderReviewSummary();
+        }
+
+        function isLowConf(r) {
+            return r.confidence !== null && r.confidence !== undefined && r.confidence < reviewThreshold;
+        }
+
+        function renderReviewSummary() {
+            const total = reviewRows.length;
+            const categorised = reviewRows.filter(r => r.category !== null).length;
+            const lowConf = reviewRows.filter(isLowConf).length;
+            document.getElementById('review-summary').textContent =
+                `${total} transactions · ${categorised} categorised · ${total - categorised} uncategorised · ` +
+                `${lowConf} low-confidence (< ${Math.round(reviewThreshold * 100)}%) — highlighted`;
+        }
+
+        function renderReviewTable() {
+            const search = document.getElementById('review-search').value.trim().toLowerCase();
+            const catFilter = document.getElementById('review-filter-category').value;
+            const lowOnly = document.getElementById('review-low-conf').checked;
+
+            let rows = reviewRows;
+            if (search) rows = rows.filter(r => (r.description || '').toLowerCase().includes(search));
+            if (catFilter === 'uncategorised') rows = rows.filter(r => r.category === null);
+            else if (catFilter !== 'all') rows = rows.filter(r => r.category === Number(catFilter));
+            if (lowOnly) rows = rows.filter(isLowConf);
+
+            const tbody = document.getElementById('review-tbody');
+            tbody.innerHTML = rows.map(r => `
+                <tr class="${isLowConf(r) ? 'bg-amber-50' : ''} hover:bg-gray-50">
+                    <td class="py-2 px-3 whitespace-nowrap text-gray-500">${esc(r.date)}</td>
+                    <td class="py-2 px-3">${esc(r.description)}</td>
+                    <td class="py-2 px-3 text-right whitespace-nowrap ${r.direction === 'in' ? 'text-emerald-600 font-medium' : 'text-gray-700'}">${Number(r.signed_amount).toFixed(2)}</td>
+                    <td class="py-2 px-3 text-gray-500">${esc(r.direction)}</td>
+                    <td class="py-2 px-3">${categorySelectHTML(r)}</td>
+                    <td class="py-2 px-3 text-gray-500 text-xs">${esc(r.source || '')}</td>
+                    <td class="py-2 px-3 text-right text-xs ${isLowConf(r) ? 'text-amber-600 font-semibold' : 'text-gray-400'}">${r.confidence != null ? Number(r.confidence).toFixed(2) : '—'}</td>
+                </tr>
+            `).join('') || '<tr><td colspan="7" class="py-6 text-center text-gray-400 text-sm">No rows match the filters.</td></tr>';
+            renderReviewSummary();
+        }
+
+        async function saveReview() {
+            if (!reviewFilename) return;
+            try {
+                const data = await fetchJSON(`/api/review/${encodeURIComponent(reviewFilename)}`, {
+                    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ rows: reviewRows })
+                });
+                showStatus(`Success!\n${data.message}`);
+            } catch (err) { showStatus(`Error: ${err.message}`, true); }
+        }
+
+        async function promoteReview() {
+            if (!reviewFilename) return;
+            if (!confirm('Save your edits first if you haven\'t. Add this file\'s categorised rows to the training data?')) return;
+            try {
+                const data = await fetchJSON(`/api/review/${encodeURIComponent(reviewFilename)}/promote`, { method: 'POST' });
+                showStatus(`Success!\n${data.message}`);
+                loadSetup();
+            } catch (err) { showStatus(`Error: ${err.message}`, true); }
+        }
+
+        // ------------------------------------------------------------------
+        // Section 4: Insights
+        // ------------------------------------------------------------------
+        function renderInsightsFileList(files) {
+            const el = document.getElementById('insights-files');
+            el.innerHTML = files.length ? files.map(f => `
+                <label class="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                    <input type="checkbox" name="insights-files" value="${esc(f)}" class="rounded border-gray-300 text-violet-600 focus:ring-violet-500 h-4 w-4">
+                    ${esc(f)}
+                </label>`).join('')
+                : '<p class="text-gray-400 text-sm italic">No categorised files yet.</p>';
+        }
+
+        const CHART_COLORS = ['#6366f1', '#f59e0b', '#10b981', '#ef4444', '#3b82f6',
+            '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#64748b'];
+
+        async function loadInsights() {
+            const files = getSelected('insights-files');
+            if (files.length === 0) { alert('Select at least one categorised file.'); return; }
+            const params = new URLSearchParams();
+            files.forEach(f => params.append('files', f));
+            try {
+                const data = await fetchJSON(`/api/insights?${params}`);
+                document.getElementById('insights-content').classList.remove('hidden');
+
+                const s = data.summary;
+                const fmt = n => n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                document.getElementById('insights-metrics').innerHTML = [
+                    ['Income', fmt(s.total_income), 'text-emerald-600'],
+                    ['Costs', fmt(s.total_costs), 'text-red-500'],
+                    ['Net', fmt(s.net), s.net >= 0 ? 'text-emerald-600' : 'text-red-500'],
+                    ['Categorised', s.n_categorised, 'text-gray-800'],
+                    ['Uncategorised', s.n_uncategorised, s.n_uncategorised ? 'text-amber-600' : 'text-gray-800'],
+                ].map(([label, value, cls]) => `
+                    <div class="bg-gray-50 rounded-lg p-3 border border-gray-100">
+                        <p class="text-xs text-gray-500">${label}</p>
+                        <p class="text-lg font-semibold ${cls}">${value}</p>
+                    </div>`).join('');
+
+                if (chartCosts) chartCosts.destroy();
+                chartCosts = new Chart(document.getElementById('chart-costs'), {
+                    type: 'doughnut',
+                    data: {
+                        labels: data.costs_by_category.map(c => c.label),
+                        datasets: [{
+                            data: data.costs_by_category.map(c => c.amount),
+                            backgroundColor: CHART_COLORS,
+                        }]
+                    },
+                    options: { plugins: { legend: { position: 'right' } }, cutout: '55%' }
+                });
+
+                if (chartMonths) chartMonths.destroy();
+                chartMonths = new Chart(document.getElementById('chart-months'), {
+                    type: 'bar',
+                    data: {
+                        labels: data.by_month.map(m => m.month),
+                        datasets: [
+                            { label: 'Income', data: data.by_month.map(m => m.income), backgroundColor: '#10b981' },
+                            { label: 'Costs', data: data.by_month.map(m => m.costs), backgroundColor: '#ef4444' },
+                        ]
+                    },
+                    options: { scales: { y: { beginAtZero: true } } }
+                });
+            } catch (err) { showStatus(`Error: ${err.message}`, true); }
+        }
+
+        // ------------------------------------------------------------------
+        // Section 5: Setup (prompts, models, training data, settings)
+        // ------------------------------------------------------------------
+        async function loadSetup() {
+            try {
+                const [prompts, models, training, settings] = await Promise.all([
+                    fetchJSON('/api/prompts'), fetchJSON('/api/models'),
+                    fetchJSON('/api/training-data'), fetchJSON('/api/settings'),
+                ]);
+
+                document.getElementById('prompts-active').textContent = `active: ${prompts.active}`;
+                document.getElementById('prompts-list').innerHTML = prompts.prompts.map(p => `
+                    <details class="border border-gray-100 rounded-lg">
+                        <summary class="flex items-center justify-between py-2 px-3 cursor-pointer text-sm">
+                            <span class="font-medium text-gray-700">${esc(p.version)}
+                                ${p.active ? '<span class="ml-2 text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">active</span>' : ''}
+                            </span>
+                            ${!p.active ? `<button onclick="event.preventDefault(); activatePrompt('${esc(p.version)}')" class="text-xs text-blue-600 hover:text-blue-700 font-medium">Activate</button>` : ''}
+                        </summary>
+                        <pre class="text-xs bg-gray-50 p-3 border-t border-gray-100 whitespace-pre-wrap">${esc(p.text)}</pre>
+                    </details>`).join('') || '<p class="text-gray-400 text-sm italic">No prompt files found.</p>';
+
+                document.getElementById('models-active').textContent =
+                    models.active ? `active: v${models.active}` : 'no model yet';
+                document.getElementById('models-list').innerHTML = models.models.map(m => {
+                    const metrics = m.metrics ? Object.entries(m.metrics)
+                        .filter(([k]) => k !== 'note')
+                        .map(([k, v]) => `${k.replace(/_/g, ' ')}: ${v}`).join(' · ') : '';
+                    return `
+                    <div class="border border-gray-100 rounded-lg py-2 px-3 flex items-center justify-between text-sm">
+                        <div>
+                            <span class="font-medium text-gray-700">v${m.version}</span>
+                            ${m.active ? '<span class="ml-2 text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">active</span>' : ''}
+                            ${!m.artefact_exists ? '<span class="ml-2 text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full">file missing</span>' : ''}
+                            <p class="text-xs text-gray-500 mt-0.5">${m.training_size ?? '?'} rows · ${esc(metrics)} · ${esc(m.created_at ?? '')}</p>
+                        </div>
+                        ${!m.active && m.artefact_exists ? `<button onclick="activateModel(${m.version})" class="text-xs text-blue-600 hover:text-blue-700 font-medium">Activate</button>` : ''}
+                    </div>`;
+                }).join('') || '<p class="text-gray-400 text-sm italic">No models trained yet.</p>';
+
+                document.getElementById('training-data-stats').innerHTML = training.files.length
+                    ? `<p class="mb-1">${training.total_rows} rows · ${training.total_categories} categories</p>` +
+                      training.files.map(f => `<p class="text-xs text-gray-500">· ${esc(f.name)} — ${f.rows} rows</p>`).join('')
+                    : '<p class="text-gray-400 text-sm italic">Empty — review a statement and add it (section 3).</p>';
+
+                const thr = settings.confidence_threshold ?? 0.7;
+                document.getElementById('setting-threshold').value = thr;
+                document.getElementById('threshold-value').textContent = thr;
+                document.getElementById('setting-openai-model').value = settings.openai_model ?? '';
+            } catch (err) { showStatus(`Error loading setup: ${err.message}`, true); }
+        }
+
+        async function activatePrompt(version) {
+            try {
+                await fetchJSON('/api/prompts/activate', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ version })
+                });
+                loadSetup();
+            } catch (err) { showStatus(`Error: ${err.message}`, true); }
+        }
+
+        async function createPrompt() {
+            const text = document.getElementById('prompt-new-text').value;
+            if (!text.trim()) { alert('Prompt text is empty.'); return; }
+            try {
+                const data = await fetchJSON('/api/prompts', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text })
+                });
+                document.getElementById('prompt-new-text').value = '';
+                showStatus(`Success!\n${data.message}`);
+                loadSetup();
+            } catch (err) { showStatus(`Error: ${err.message}`, true); }
+        }
+
+        async function activateModel(version) {
+            try {
+                await fetchJSON('/api/models/activate', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ version })
+                });
+                loadSetup();
+            } catch (err) { showStatus(`Error: ${err.message}`, true); }
+        }
+
+        async function trainModel() {
+            showStatus('Training model... please wait.');
+            try {
+                const data = await fetchJSON('/api/models/train', { method: 'POST' });
+                showStatus(`Success!\n${data.message}\nMetrics: ${JSON.stringify(data.metrics)}`);
+                loadSetup();
+            } catch (err) { showStatus(`Error: ${err.message}`, true); }
+        }
+
+        async function saveSettings() {
+            try {
+                const data = await fetchJSON('/api/settings', {
+                    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        confidence_threshold: Number(document.getElementById('setting-threshold').value),
+                        openai_model: document.getElementById('setting-openai-model').value || null,
+                    })
+                });
+                reviewThreshold = data.confidence_threshold;
+                showStatus('Settings saved.');
+                if (reviewRows.length) renderReviewTable();
+            } catch (err) { showStatus(`Error: ${err.message}`, true); }
         }
 
         // Initial load
         loadFiles();
         loadCsvFiles();
+        loadCategories().then(loadReviewFiles);
+        loadSetup();
     </script>
 </body>
 
