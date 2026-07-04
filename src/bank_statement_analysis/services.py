@@ -3,43 +3,71 @@ from pathlib import Path
 from typing import List, Optional, Dict, Any
 
 from . import config
+from .dedup import dedup_key
+from . import direction
 from .extract import extract_transactions_from_pdf
 from .categorize import Transaction, categorize_transactions, categorize_transactions_local
 
 logger = logging.getLogger(__name__)
 
+
+def enrich_rows(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Normalise one statement's extracted rows and derive direction.
+
+    - amount becomes a positive magnitude (direction carries the sign)
+    - rows with an empty description or zero amount are dropped (extraction noise)
+    - each row gains 'direction' ('in'/'out') and 'signed_amount' (+in/-out)
+
+    Must be called per statement: direction inference uses the running balance.
+    """
+    cleaned = [
+        {
+            **r,
+            "amount": round(abs(float(r["amount"])), 2),
+            "balance": round(float(r["balance"]), 2),
+        }
+        for r in rows
+        if r.get("description") and abs(float(r.get("amount") or 0)) > 0
+    ]
+    return direction.derive(cleaned)
+
+
+def dedup_rows(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Drop duplicate transactions across statements (overlapping statement
+    periods), keeping the first-seen row. Key: date|description|amount|balance."""
+    seen: set[str] = set()
+    out: List[Dict[str, Any]] = []
+    for r in rows:
+        key = dedup_key(r["date"], r["description"], float(r["amount"]), float(r["balance"]))
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(r)
+    return out
+
+
 def extract_data(pdf_paths: List[Path]) -> List[Dict[str, Any]]:
     """
-    Iterates over the provided PDF paths and extracts transactions.
-    Returns a list of transaction dictionaries.
+    Extract transactions from the provided PDFs. Each statement's rows are
+    normalised and direction-tagged individually; the combined result is
+    deduplicated so overlapping statements never double-count.
     """
     all_rows: List[Dict[str, Any]] = []
     for p in pdf_paths:
         if not p.exists():
             logger.warning(f"File not found: {p}")
             continue
-        
-        # Log to console or logger depending on configuration. 
-        # For CLI usage, we might want to print, but for now let's stick to logging 
-        # or just let the caller handle progress indication if needed.
-        # Since the original CLI printed "Extracting from ...", we might lose that 
-        # specific per-file print unless we pass a callback or just log it.
+
         logger.info(f"Extracting from {p} ...")
-        
+
         try:
             rows = extract_transactions_from_pdf(str(p))
-            all_rows.extend(rows)
+            all_rows.extend(enrich_rows(rows))
         except Exception as e:
             logger.error(f"Error extracting from {p}: {e}")
-            # In server.py we raised 500. In main.py we just crashed? 
-            # main.py didn't have try/except block around extract call.
-            # We'll re-raise for now to be safe or just log. 
-            # Given the server logic, it might be better to propagate the error 
-            # if we want to stop, or continue if we want partial results.
-            # The server logic raised HTTPException.
-            raise e 
+            raise e
 
-    return all_rows
+    return dedup_rows(all_rows)
 
 def load_csv_data(csv_paths: List[Path]) -> List[Dict[str, Any]]:
     """
@@ -62,12 +90,19 @@ def load_csv_data(csv_paths: List[Path]) -> List[Dict[str, Any]]:
                     r["amount"] = float(r["amount"])
                 if "balance" in r:
                     r["balance"] = float(r["balance"])
+            # Older extracted CSVs predate direction/signed_amount — derive them
+            # (per file: direction inference follows one running balance).
+            if rows and not rows[0].get("direction"):
+                rows = enrich_rows(rows)
+            else:
+                for r in rows:
+                    r["signed_amount"] = float(r.get("signed_amount") or 0.0)
             all_rows.extend(rows)
         except Exception as e:
             logger.error(f"Error loading {p}: {e}")
             raise e
-            
-    return all_rows
+
+    return dedup_rows(all_rows)
 
 def categorize_data(
     rows: List[Dict[str, Any]],
@@ -105,5 +140,6 @@ def categorize_data(
     for i, c in enumerate(categorized):
         rows[i]["category"] = int(c.category)
         rows[i]["category_label"] = c.category_label
-    
+        rows[i]["source"] = mode.lower()
+
     return rows

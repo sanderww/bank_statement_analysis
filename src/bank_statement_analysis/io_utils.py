@@ -3,8 +3,8 @@ from pathlib import Path
 from typing import Iterable
 
 
-BASE_FIELDS = ["date", "description", "amount", "balance"]
-CAT_FIELDS = BASE_FIELDS + ["category", "category_label"]
+BASE_FIELDS = ["date", "description", "amount", "balance", "direction", "signed_amount"]
+CAT_FIELDS = BASE_FIELDS + ["category", "category_label", "source", "confidence"]
 
 
 def write_csv(rows: Iterable[dict], output_path: str, include_category: bool, append: bool = False) -> None:
