@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Iterable
 
 
-BASE_FIELDS = ["date", "description", "amount", "balance", "direction", "signed_amount"]
+BASE_FIELDS = ["date", "description", "amount", "balance", "direction", "signed_amount", "source_statement"]
 CAT_FIELDS = BASE_FIELDS + ["category", "category_label", "source", "confidence"]
 
 

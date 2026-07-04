@@ -8,7 +8,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 
-from . import config, insights, model_store, prompt_store, training_data
+from . import config, export, handoff, insights, model_store, prompt_store, training_data
 from . import settings as app_settings
 from .categories import CATEGORY_LABELS, Category, VALID_CODES, label as category_label
 from .io_utils import read_csv, write_csv
@@ -192,6 +192,18 @@ async def activate_prompt(req: PromptActivate):
     return {"message": f"Prompt {req.version} is now active", "active": req.version}
 
 
+@app.put("/api/prompts/{version}")
+async def update_prompt(version: str, req: PromptCreate):
+    """Edit an existing prompt version in place."""
+    try:
+        prompt_store.update(version, req.text)
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"message": f"Prompt {version} updated", "version": version}
+
+
 # --------------------------------------------------------------------------
 # Models & training data
 # --------------------------------------------------------------------------
@@ -305,6 +317,7 @@ async def save_review(filename: str, req: ReviewSave):
             "balance": r.get("balance", ""),
             "direction": r.get("direction", ""),
             "signed_amount": r.get("signed_amount", ""),
+            "source_statement": r.get("source_statement", ""),
             "category": cat if cat is not None else "",
             "category_label": category_label(cat) if cat is not None else "",
             "source": r.get("source", ""),
@@ -324,6 +337,73 @@ async def promote_to_training(filename: str):
         "message": (
             f"Added {res['added']} rows to training data "
             f"({res['skipped_duplicate']} duplicates, {res['skipped_invalid']} uncategorised skipped)"
+        ),
+        **res,
+    }
+
+
+@app.post("/api/review/{filename}/export")
+async def export_final_csv(filename: str):
+    """Export the file's categorised rows as a decoupled final CSV."""
+    _safe_categorised_path(filename)
+    res = export.export_final(filename)
+    return {
+        "message": (
+            f"Exported {res['rows']} rows to {res['name']} "
+            f"({res['skipped_uncategorised']} uncategorised skipped)"
+        ),
+        **res,
+    }
+
+
+# --------------------------------------------------------------------------
+# Claude Code / cowork hand-off (no API)
+# --------------------------------------------------------------------------
+
+class HandoffExport(BaseModel):
+    file: str  # an extracted_raw CSV name
+
+
+class HandoffImport(BaseModel):
+    results: str  # results_<stamp>.csv in output/handoff/
+
+
+@app.get("/api/handoff")
+async def handoff_files():
+    return handoff.list_files()
+
+
+@app.post("/api/handoff/export")
+async def handoff_export(req: HandoffExport):
+    if Path(req.file).name != req.file:
+        raise HTTPException(status_code=400, detail="Invalid filename")
+    try:
+        res = handoff.export_for_categorisation(req.file)
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    return {
+        "message": (
+            f"Exported {res['rows']} transactions (prompt {res['prompt_version']}). "
+            f"Categorise them in a Claude Code session, save as {res['expected_results_name']}, then import."
+        ),
+        **res,
+    }
+
+
+@app.post("/api/handoff/import")
+async def handoff_import(req: HandoffImport):
+    if Path(req.results).name != req.results:
+        raise HTTPException(status_code=400, detail="Invalid filename")
+    try:
+        res = handoff.import_results(req.results)
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {
+        "message": (
+            f"Imported {res['applied']} categories ({res['skipped']} skipped). "
+            f"Review the result: {res['output_name']}"
         ),
         **res,
     }

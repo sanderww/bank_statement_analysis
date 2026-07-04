@@ -40,6 +40,16 @@ def categorised_dir() -> Path:
     return output_dir() / "categorised"
 
 
+def handoff_dir() -> Path:
+    """Claude Code / cowork hand-off files (request/instructions/results)."""
+    return output_dir() / "handoff"
+
+
+def final_dir() -> Path:
+    """Final decoupled CSVs for a downstream budget app."""
+    return output_dir() / "final"
+
+
 def models_dir() -> Path:
     return data_root() / "models"
 
@@ -63,6 +73,8 @@ def ensure_dirs() -> None:
         bank_statements_dir(),
         extracted_raw_dir(),
         categorised_dir(),
+        handoff_dir(),
+        final_dir(),
         models_dir(),
         training_data_dir(),
         prompts_dir(),

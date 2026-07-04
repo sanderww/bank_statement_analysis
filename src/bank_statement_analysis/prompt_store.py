@@ -60,6 +60,16 @@ def set_active(version: str) -> None:
     settings.save({"active_prompt_version": version})
 
 
+def update(version: str, text: str) -> None:
+    """Overwrite an existing prompt version's text in place."""
+    if not text.strip():
+        raise ValueError("Prompt text is empty.")
+    path = config.prompts_dir() / f"{version}.txt"
+    if not path.exists():
+        raise FileNotFoundError(f"Prompt version does not exist: {version}")
+    path.write_text(text.strip() + "\n", encoding="utf-8")
+
+
 def add_version(text: str, activate: bool = True) -> str:
     """Save `text` as the next v{N}.txt. Returns the new version name."""
     if not text.strip():

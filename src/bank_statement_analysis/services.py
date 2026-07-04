@@ -61,8 +61,10 @@ def extract_data(pdf_paths: List[Path]) -> List[Dict[str, Any]]:
         logger.info(f"Extracting from {p} ...")
 
         try:
-            rows = extract_transactions_from_pdf(str(p))
-            all_rows.extend(enrich_rows(rows))
+            rows = enrich_rows(extract_transactions_from_pdf(str(p)))
+            for r in rows:
+                r["source_statement"] = p.name  # traceability back to the PDF
+            all_rows.extend(rows)
         except Exception as e:
             logger.error(f"Error extracting from {p}: {e}")
             raise e
@@ -97,6 +99,9 @@ def load_csv_data(csv_paths: List[Path]) -> List[Dict[str, Any]]:
             else:
                 for r in rows:
                     r["signed_amount"] = float(r.get("signed_amount") or 0.0)
+            for r in rows:
+                if not r.get("source_statement"):
+                    r["source_statement"] = p.name
             all_rows.extend(rows)
         except Exception as e:
             logger.error(f"Error loading {p}: {e}")
