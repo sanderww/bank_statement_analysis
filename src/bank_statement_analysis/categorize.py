@@ -1,5 +1,4 @@
 import os
-from enum import IntEnum
 from typing import List
 
 from dotenv import load_dotenv
@@ -13,37 +12,13 @@ import pandas as pd
 from joblib import load
 
 from . import config
+from .categories import CATEGORY_LABELS, Category
 
 # Load env from project root .env
 load_dotenv()
 
 
 logger = logging.getLogger(__name__)
-
-
-class Category(IntEnum):
-    HOUSING_UTILITIES = 1
-    GROCERIES_HOUSEHOLD = 2
-    CHILDCARE_EDUCATION = 3
-    TRANSPORT = 4
-    HEALTH_INSURANCE = 5
-    FOOD_DINING = 6
-    CLOTHING_PERSONAL_CARE = 7
-    LEISURE_ENTERTAINMENT = 8
-    FINANCIAL_MISC = 9
-
-
-CATEGORY_LABELS = {
-    Category.HOUSING_UTILITIES: "Housing & Utilities",
-    Category.GROCERIES_HOUSEHOLD: "Groceries & Household",
-    Category.CHILDCARE_EDUCATION: "Childcare & Education",
-    Category.TRANSPORT: "Transport",
-    Category.HEALTH_INSURANCE: "Health & Insurance",
-    Category.FOOD_DINING: "Food & Dining",
-    Category.CLOTHING_PERSONAL_CARE: "Clothing & Personal Care",
-    Category.LEISURE_ENTERTAINMENT: "Leisure & Entertainment",
-    Category.FINANCIAL_MISC: "Financial & Miscellaneous",
-}
 
 
 class Transaction(BaseModel):
@@ -54,7 +29,7 @@ class Transaction(BaseModel):
 
 
 class CategorizedTransaction(Transaction):
-    category: Category = Field(..., description="Category enum 1..9")
+    category: Category = Field(..., description="Category enum 0..10 (0=Unknown, 10=Income)")
     category_label: str
 
 
@@ -65,35 +40,11 @@ def _build_system_prompt(version: str = "v1") -> str:
     return prompt_path.read_text().strip()
 
 
-def _json_schema_for_model() -> dict:
-    return {
-        "name": "CategorizedTransaction",
-        "schema": {
-            "$schema": "http://json-schema.org/draft-07/schema#",
-            "type": "object",
-            "additionalProperties": False,
-            "properties": {
-                "date": {"type": "string"},
-                "description": {"type": "string"},
-                "amount": {"type": "number"},
-                "balance": {"type": "number"},
-                "category": {"type": "integer", "minimum": 1, "maximum": 9},
-                "category_label": {"type": "string"},
-            },
-            "required": [
-                "date",
-                "description",
-                "amount",
-                "balance",
-                "category",
-                "category_label",
-            ],
-        },
-        "strict": True,
-    }
-
-
-def categorize_transactions(transactions: List[Transaction], model: str = "gpt-5-mini", prompt_version: str = "v1") -> List[CategorizedTransaction]:
+def categorize_transactions(
+    transactions: List[Transaction],
+    model: str = "gpt-5-mini",
+    prompt_version: str = config.DEFAULT_PROMPT_VERSION,
+) -> List[CategorizedTransaction]:
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
         raise RuntimeError("OPENAI_API_KEY not set")
@@ -128,11 +79,11 @@ def categorize_transactions(transactions: List[Transaction], model: str = "gpt-5
             )
             item = resp.output_parsed
         except Exception as e:
-            logger.warning("OpenAI parse failed for transaction date=%s amount=%.2f: %s. Falling back to default category.", tx.date, tx.amount, str(e))
+            logger.warning("OpenAI parse failed for transaction date=%s amount=%.2f: %s. Falling back to Unknown.", tx.date, tx.amount, str(e))
             item = CategorizedTransaction(
                 **tx.model_dump(),
-                category=Category.FINANCIAL_MISC,
-                category_label=CATEGORY_LABELS[Category.FINANCIAL_MISC],
+                category=Category.UNKNOWN,
+                category_label=CATEGORY_LABELS[Category.UNKNOWN],
             )
 
         if not item.category_label:
@@ -182,7 +133,7 @@ def categorize_transactions_local(
         try:
             cat_enum = Category(int(cat_id))
         except Exception:
-            cat_enum = Category.FINANCIAL_MISC
+            cat_enum = Category.UNKNOWN
         label = CATEGORY_LABELS.get(cat_enum, category_labels.get(int(cat_enum), str(int(cat_enum))))
         results.append(
             CategorizedTransaction(

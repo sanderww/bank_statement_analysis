@@ -2,6 +2,7 @@ import logging
 from pathlib import Path
 from typing import List, Optional, Dict, Any
 
+from . import config
 from .extract import extract_transactions_from_pdf
 from .categorize import Transaction, categorize_transactions, categorize_transactions_local
 
@@ -72,7 +73,7 @@ def categorize_data(
     rows: List[Dict[str, Any]],
     mode: str = "openai",
     model: str = "gpt-5-mini",
-    prompt_version: str = "v1",
+    prompt_version: str = config.DEFAULT_PROMPT_VERSION,
     local_model_path: Optional[Path] = None
 ) -> List[Dict[str, Any]]:
     """

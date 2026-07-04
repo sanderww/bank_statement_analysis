@@ -14,7 +14,7 @@ from sklearn.preprocessing import StandardScaler, FunctionTransformer
 from joblib import dump
 
 from . import config
-from .categorize import CATEGORY_LABELS, Category
+from .categories import CATEGORY_LABELS, Category
 
 
 app = typer.Typer(help="Train a local model to categorize transactions from a labeled CSV.")

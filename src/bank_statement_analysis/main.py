@@ -41,7 +41,7 @@ def run(
     categorize: bool = typer.Option(False, "--categorize/--no-categorize", help="Add category"),
     categorize_mode: str = typer.Option("openai", help="Categorization mode: 'openai' or 'local'"),
     model: str = typer.Option("o4-mini", help="OpenAI model for categorization (when mode=openai)"),
-    prompt_version: str = typer.Option("v1", help="Version of the system prompt to use (e.g. 'v1')"),
+    prompt_version: str = typer.Option(config.DEFAULT_PROMPT_VERSION, help="Version of the system prompt to use (e.g. 'v2')"),
     local_model_path: Path = typer.Option(Path("models/transactions_classifier.joblib"), help="Path to local model (when mode=local)"),
 ):
     pdfs = _gather_pdfs(files, all)
