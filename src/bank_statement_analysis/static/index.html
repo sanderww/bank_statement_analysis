@@ -18,10 +18,16 @@
 <body class="bg-gray-50 text-gray-900 min-h-screen p-6 md:p-12">
 
     <div class="max-w-6xl mx-auto">
-        <header class="mb-10">
-            <h1 class="text-3xl font-bold text-gray-900 tracking-tight">Bank Statement Analysis</h1>
-            <p class="text-gray-500 mt-2">Extract, categorise, review and analyse your bank statements. The local
-                model improves as you review — promote reviewed statements to training data and retrain.</p>
+        <header class="mb-10 flex items-start justify-between gap-4">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-900 tracking-tight">Bank Statement Analysis</h1>
+                <p class="text-gray-500 mt-2">Extract, categorise, review and analyse your bank statements. The local
+                    model improves as you review — promote reviewed statements to training data and retrain.</p>
+            </div>
+            <button onclick="openSetup()"
+                class="shrink-0 flex items-center gap-2 py-2.5 px-5 bg-gray-900 text-white font-medium rounded-lg hover:bg-gray-700 shadow-sm text-sm transition-colors">
+                <span class="text-base">⚙</span> Setup
+            </button>
         </header>
 
         <main class="space-y-12">
@@ -256,85 +262,6 @@
                 </div>
             </section>
 
-            <!-- SECTION 5: SETUP -->
-            <section>
-                <div class="flex items-center gap-3 mb-6">
-                    <div
-                        class="bg-gray-200 text-gray-700 font-bold rounded-full w-8 h-8 flex items-center justify-center">
-                        ⚙</div>
-                    <h2 class="text-xl font-bold text-gray-900">Setup — Prompts, Models & Settings</h2>
-                </div>
-
-                <div class="grid md:grid-cols-2 gap-6">
-                    <!-- Prompts -->
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                        <div class="flex justify-between items-center mb-2">
-                            <h3 class="font-semibold text-gray-800">Categorisation prompts</h3>
-                            <span id="prompts-active" class="text-xs text-gray-500"></span>
-                        </div>
-                        <p class="text-xs text-gray-500 mb-4">Versioned prompts for the OpenAI categorisation. The
-                            active version is used by default.</p>
-                        <div id="prompts-list" class="space-y-2 mb-4 max-h-64 overflow-y-auto"></div>
-                        <details class="border-t border-gray-100 pt-3">
-                            <summary class="text-sm font-medium text-blue-600 cursor-pointer">New prompt version</summary>
-                            <textarea id="prompt-new-text" rows="8"
-                                class="w-full mt-3 border border-gray-300 rounded-lg text-sm p-3 font-mono"
-                                placeholder="Prompt text..."></textarea>
-                            <button onclick="createPrompt()"
-                                class="mt-2 py-2 px-4 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 text-sm">Save
-                                as new version</button>
-                        </details>
-                    </div>
-
-                    <!-- Models -->
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                        <div class="flex justify-between items-center mb-2">
-                            <h3 class="font-semibold text-gray-800">Local models</h3>
-                            <span id="models-active" class="text-xs text-gray-500"></span>
-                        </div>
-                        <p class="text-xs text-gray-500 mb-4">Versioned local models, trained from the curated
-                            training data below. Training happens offline on this machine.</p>
-                        <div id="models-list" class="space-y-2 mb-4 max-h-52 overflow-y-auto"></div>
-
-                        <div class="border-t border-gray-100 pt-4">
-                            <div class="flex justify-between items-center mb-1">
-                                <h4 class="text-sm font-semibold text-gray-700">Training data</h4>
-                                <button onclick="trainModel()"
-                                    class="py-1.5 px-3 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 text-sm">Train
-                                    new version</button>
-                            </div>
-                            <p class="text-xs text-gray-500 mb-2">Grown deliberately from reviewed statements
-                                (section 3 → “Add to training data”).</p>
-                            <div id="training-data-stats" class="text-sm text-gray-600"></div>
-                        </div>
-                    </div>
-
-                    <!-- Settings -->
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 md:col-span-2">
-                        <h3 class="font-semibold text-gray-800 mb-4">Settings</h3>
-                        <div class="flex flex-wrap items-end gap-6">
-                            <div>
-                                <label class="block text-xs font-medium text-gray-500 mb-1">Low-confidence threshold
-                                    (<span id="threshold-value">—</span>)</label>
-                                <input id="setting-threshold" type="range" min="0" max="1" step="0.05"
-                                    oninput="document.getElementById('threshold-value').textContent = this.value"
-                                    class="w-56 accent-blue-600">
-                                <p class="text-xs text-gray-400 mt-1">Model predictions below this are flagged in
-                                    review.</p>
-                            </div>
-                            <div>
-                                <label class="block text-xs font-medium text-gray-500 mb-1">OpenAI model</label>
-                                <input id="setting-openai-model" type="text"
-                                    class="border border-gray-300 rounded-lg text-sm py-2 px-3 w-56">
-                            </div>
-                            <button onclick="saveSettings()"
-                                class="py-2 px-4 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 text-sm">Save
-                                settings</button>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
             <!-- Output/Status Section -->
             <section id="status-section" class="hidden bg-white rounded-xl shadow-sm border border-gray-100 p-6">
                 <h3 class="text-lg font-semibold text-gray-800 mb-4">Status</h3>
@@ -343,6 +270,107 @@
                 </div>
             </section>
         </main>
+    </div>
+
+    <!-- SETUP DRAWER (opened via the header button) -->
+    <div id="setup-overlay" class="fixed inset-0 z-50 hidden">
+        <div class="absolute inset-0 bg-gray-900/40" onclick="closeSetup()"></div>
+        <div class="absolute right-0 top-0 h-full w-full max-w-2xl bg-white shadow-2xl flex flex-col">
+            <!-- Drawer header -->
+            <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+                <div class="flex items-center gap-2">
+                    <span class="text-lg">⚙</span>
+                    <h2 class="text-lg font-bold text-gray-900">Setup</h2>
+                </div>
+                <button onclick="closeSetup()" aria-label="Close settings"
+                    class="text-gray-400 hover:text-gray-700 text-xl leading-none px-2 py-1 rounded-lg hover:bg-gray-100">✕</button>
+            </div>
+
+            <!-- Tabs -->
+            <div class="px-6 pt-3 border-b border-gray-100 flex gap-1" id="setup-tabs">
+                <button data-tab="general" onclick="switchSetupTab('general')"
+                    class="setup-tab py-2 px-4 text-sm font-medium rounded-t-lg border-b-2">General</button>
+                <button data-tab="prompts" onclick="switchSetupTab('prompts')"
+                    class="setup-tab py-2 px-4 text-sm font-medium rounded-t-lg border-b-2">Prompts</button>
+                <button data-tab="models" onclick="switchSetupTab('models')"
+                    class="setup-tab py-2 px-4 text-sm font-medium rounded-t-lg border-b-2">Models &amp; Training</button>
+            </div>
+
+            <!-- Drawer status -->
+            <div id="setup-status" class="hidden mx-6 mt-3 text-xs rounded-lg px-3 py-2 border"></div>
+
+            <!-- Tab panes -->
+            <div class="flex-1 overflow-y-auto px-6 py-5">
+                <!-- General -->
+                <div id="setup-pane-general" class="setup-pane space-y-6">
+                    <div>
+                        <h3 class="font-semibold text-gray-800 mb-1">Review</h3>
+                        <label class="block text-xs font-medium text-gray-500 mb-1 mt-3">Low-confidence threshold
+                            (<span id="threshold-value">—</span>)</label>
+                        <input id="setting-threshold" type="range" min="0" max="1" step="0.05"
+                            oninput="document.getElementById('threshold-value').textContent = this.value"
+                            class="w-72 accent-blue-600">
+                        <p class="text-xs text-gray-400 mt-1">Model predictions below this probability are flagged
+                            (highlighted) in the Review step.</p>
+                    </div>
+                    <div>
+                        <h3 class="font-semibold text-gray-800 mb-1">Categorisation</h3>
+                        <label class="block text-xs font-medium text-gray-500 mb-1 mt-3">OpenAI model</label>
+                        <input id="setting-openai-model" type="text"
+                            class="border border-gray-300 rounded-lg text-sm py-2 px-3 w-72">
+                        <p class="text-xs text-gray-400 mt-1">Used by the “OpenAI LLM” categorisation buttons.</p>
+                    </div>
+                    <div class="pt-2 border-t border-gray-100">
+                        <button onclick="saveSettings()"
+                            class="py-2 px-4 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 text-sm">Save
+                            settings</button>
+                    </div>
+                </div>
+
+                <!-- Prompts -->
+                <div id="setup-pane-prompts" class="setup-pane hidden">
+                    <div class="flex justify-between items-center mb-2">
+                        <h3 class="font-semibold text-gray-800">Categorisation prompts</h3>
+                        <span id="prompts-active" class="text-xs text-gray-500"></span>
+                    </div>
+                    <p class="text-xs text-gray-500 mb-4">Versioned prompts for the OpenAI categorisation. The
+                        active version is used by default.</p>
+                    <div id="prompts-list" class="space-y-2 mb-4"></div>
+                    <details class="border-t border-gray-100 pt-3">
+                        <summary class="text-sm font-medium text-blue-600 cursor-pointer">New prompt version</summary>
+                        <textarea id="prompt-new-text" rows="10"
+                            class="w-full mt-3 border border-gray-300 rounded-lg text-sm p-3 font-mono"
+                            placeholder="Prompt text..."></textarea>
+                        <button onclick="createPrompt()"
+                            class="mt-2 py-2 px-4 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 text-sm">Save
+                            as new version</button>
+                    </details>
+                </div>
+
+                <!-- Models & Training -->
+                <div id="setup-pane-models" class="setup-pane hidden">
+                    <div class="flex justify-between items-center mb-2">
+                        <h3 class="font-semibold text-gray-800">Local models</h3>
+                        <span id="models-active" class="text-xs text-gray-500"></span>
+                    </div>
+                    <p class="text-xs text-gray-500 mb-4">Versioned local models, trained from the curated training
+                        data below. Training happens offline on this machine.</p>
+                    <div id="models-list" class="space-y-2 mb-6"></div>
+
+                    <div class="border-t border-gray-100 pt-4">
+                        <div class="flex justify-between items-center mb-1">
+                            <h4 class="text-sm font-semibold text-gray-700">Training data</h4>
+                            <button onclick="trainModel()"
+                                class="py-1.5 px-3 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 text-sm">Train
+                                new version</button>
+                        </div>
+                        <p class="text-xs text-gray-500 mb-2">Grown deliberately from reviewed statements
+                            (step 3 → “Add to training data”).</p>
+                        <div id="training-data-stats" class="text-sm text-gray-600"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -649,8 +677,44 @@
         }
 
         // ------------------------------------------------------------------
-        // Section 5: Setup (prompts, models, training data, settings)
+        // Setup drawer (prompts, models, training data, settings)
         // ------------------------------------------------------------------
+        function openSetup(tab) {
+            document.getElementById('setup-overlay').classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+            switchSetupTab(tab || 'general');
+            loadSetup();
+        }
+
+        function closeSetup() {
+            document.getElementById('setup-overlay').classList.add('hidden');
+            document.body.style.overflow = '';
+        }
+
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeSetup();
+        });
+
+        function showSetupStatus(message, isError = false) {
+            const el = document.getElementById('setup-status');
+            el.classList.remove('hidden');
+            el.textContent = message;
+            el.className = `mx-6 mt-3 text-xs rounded-lg px-3 py-2 border ${isError
+                ? 'bg-red-50 text-red-700 border-red-200'
+                : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`;
+        }
+
+        function switchSetupTab(tab) {
+            document.querySelectorAll('.setup-pane').forEach(p => p.classList.add('hidden'));
+            document.getElementById(`setup-pane-${tab}`).classList.remove('hidden');
+            document.querySelectorAll('.setup-tab').forEach(b => {
+                const active = b.dataset.tab === tab;
+                b.className = 'setup-tab py-2 px-4 text-sm font-medium rounded-t-lg border-b-2 ' + (active
+                    ? 'border-blue-600 text-blue-700'
+                    : 'border-transparent text-gray-500 hover:text-gray-700');
+            });
+        }
+
         async function loadSetup() {
             try {
                 const [prompts, models, training, settings] = await Promise.all([
@@ -697,7 +761,7 @@
                 document.getElementById('setting-threshold').value = thr;
                 document.getElementById('threshold-value').textContent = thr;
                 document.getElementById('setting-openai-model').value = settings.openai_model ?? '';
-            } catch (err) { showStatus(`Error loading setup: ${err.message}`, true); }
+            } catch (err) { showSetupStatus(`Error loading setup: ${err.message}`, true); }
         }
 
         async function activatePrompt(version) {
@@ -706,8 +770,9 @@
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ version })
                 });
+                showSetupStatus(`Prompt ${version} is now active.`);
                 loadSetup();
-            } catch (err) { showStatus(`Error: ${err.message}`, true); }
+            } catch (err) { showSetupStatus(`Error: ${err.message}`, true); }
         }
 
         async function createPrompt() {
@@ -719,9 +784,9 @@
                     body: JSON.stringify({ text })
                 });
                 document.getElementById('prompt-new-text').value = '';
-                showStatus(`Success!\n${data.message}`);
+                showSetupStatus(data.message);
                 loadSetup();
-            } catch (err) { showStatus(`Error: ${err.message}`, true); }
+            } catch (err) { showSetupStatus(`Error: ${err.message}`, true); }
         }
 
         async function activateModel(version) {
@@ -730,17 +795,18 @@
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ version })
                 });
+                showSetupStatus(`Model v${version} is now active.`);
                 loadSetup();
-            } catch (err) { showStatus(`Error: ${err.message}`, true); }
+            } catch (err) { showSetupStatus(`Error: ${err.message}`, true); }
         }
 
         async function trainModel() {
-            showStatus('Training model... please wait.');
+            showSetupStatus('Training model... please wait.');
             try {
                 const data = await fetchJSON('/api/models/train', { method: 'POST' });
-                showStatus(`Success!\n${data.message}\nMetrics: ${JSON.stringify(data.metrics)}`);
+                showSetupStatus(`${data.message} — metrics: ${JSON.stringify(data.metrics)}`);
                 loadSetup();
-            } catch (err) { showStatus(`Error: ${err.message}`, true); }
+            } catch (err) { showSetupStatus(`Error: ${err.message}`, true); }
         }
 
         async function saveSettings() {
@@ -753,9 +819,9 @@
                     })
                 });
                 reviewThreshold = data.confidence_threshold;
-                showStatus('Settings saved.');
+                showSetupStatus('Settings saved.');
                 if (reviewRows.length) renderReviewTable();
-            } catch (err) { showStatus(`Error: ${err.message}`, true); }
+            } catch (err) { showSetupStatus(`Error: ${err.message}`, true); }
         }
 
         // Initial load
