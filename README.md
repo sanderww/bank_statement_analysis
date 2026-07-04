@@ -1,6 +1,9 @@
 # Bank Statement Analysis
 
-Manage your bank statements, extract data, and categorize transactions with ease. This tool supports PDF extraction and automated categorization using both OpenAI LLMs and local machine learning models.
+Extract transactions from FNB PDF bank statements, categorise them (OpenAI LLM
+or a local ML model), review and fix the results, and analyse where the money
+goes. The local model improves over time: reviewed statements are promoted to a
+curated training set, and each retrain produces a new versioned model.
 
 ## 🚀 Getting Started
 
@@ -11,45 +14,75 @@ make install
 ```
 
 ### 2. Web Interface
-The tool features a 3-step workflow for managing your statements:
-1. **Process**: Extract data from PDF bank statements.
-2. **Categorize**: Classify transactions using OpenAI or a local model.
-3. **Visualise**: Review and analyze your categorized data.
-
-To start the UI:
 ```bash
 make start-server
 ```
-Once started, open [http://localhost:8000](http://localhost:8000) in your browser.
+Open [http://127.0.0.1:8000](http://127.0.0.1:8000). The UI walks through the
+workflow:
+
+1. **Process** — extract data from PDF bank statements to CSV. Extraction also
+   infers the transaction *direction* (money in/out, from the running balance),
+   adds a signed amount, and de-duplicates overlapping statements.
+2. **Categorize** — classify transactions with OpenAI (uses the active prompt
+   version) or the active local model version (adds a confidence score per row).
+3. **Review & Improve** — fix categories inline. Low-confidence predictions are
+   highlighted; filter by text, category, or low-confidence only. When a
+   statement looks right, **add it to the training data**.
+4. **Insights** — income vs costs per month and costs by category for any
+   selection of categorised files.
+5. **Setup** — manage prompt versions, model versions (train/activate), the
+   training data, and settings (e.g. the low-confidence threshold).
 
 ![Web UI Screenshot](docs/images/ui_screenshot.png)
 
+### The improvement loop
+
+```
+extract → categorise (LLM or local) → review & fix → promote to training data
+   ↑                                                        ↓
+   └────────────── train new model version ←────────────────┘
+```
+
+Categorisation is fine-tuned over time: the model only ever trains from the
+explicitly curated set in `models/training_data/` — never silently from raw
+output — so you always know what it learned from.
+
 ## 🛠 Command Line Usage
 
-### Quick Actions (Makefile)
-- `make extract`: Batch extract PDFs to `output/`.
-- `make categorize-llm`: Automated categorization via OpenAI.
-- `make train`: Train the local ML model.
-- `make categorize-local`: Categorization using your local model.
+- `make extract` — batch extract PDFs to `output/`.
+- `make categorize-llm` — extract + categorise via OpenAI (needs `OPENAI_API_KEY`).
+- `make categorize-local` — extract + categorise with the active local model version.
+- `make train` — train the next model version from `models/training_data/`.
+- `make test` — run the test suite.
 
 ### Manual Execution
 ```bash
 # Basic Extraction
-PYTHONPATH=src python -m bank_statement_analysis.main --all
+uv run bank-statement-analysis --all
 
-# Categorization (OpenAI)
-PYTHONPATH=src python -m bank_statement_analysis.main --all --categorize --model gpt-4o-mini
+# Categorization (OpenAI, active prompt version)
+uv run bank-statement-analysis --all --categorize
 
-# Local Model Training
-PYTHONPATH=src python -m bank_statement_analysis.train_model
+# Categorization (local, active model version)
+uv run bank-statement-analysis --all --categorize --categorize-mode local
 
-# Local Categorization
-PYTHONPATH=src python -m bank_statement_analysis.main --all --categorize --categorize-mode local
+# Train the next model version
+uv run train-transactions-model
 ```
 
 ## 📂 Project Structure
-- `bank_statements/`: Place your input PDF files here.
-- `output/`: Extracted CSVs and categorized data.
-- `models/`: Trained local models and training data.
-- `src/`: Core Python source code.
-- `src/bank_statement_analysis/static/`: Web UI components.
+- `bank_statements/` — input PDF files (gitignored — personal data).
+- `output/extracted_raw/` — extracted CSVs (gitignored).
+- `output/categorised/` — categorised CSVs, edited in the Review step (gitignored).
+- `models/v{N}/` — versioned model artefacts + metadata (gitignored).
+- `models/training_data/` — the curated training set (gitignored).
+- `prompts/v{N}.txt` — versioned categorisation prompts.
+- `settings.json` — machine-local state: active prompt/model version, threshold (gitignored).
+- `src/` — core Python source; `src/bank_statement_analysis/static/` — web UI.
+
+## 🔒 Privacy
+
+This repo is public. Statements, extracted/categorised CSVs, trained model
+artefacts (their vocabulary embeds real transaction descriptions) and training
+data are all gitignored — never commit them. Tests use synthetic data only.
+The server binds to 127.0.0.1.
