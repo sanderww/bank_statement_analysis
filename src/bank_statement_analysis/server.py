@@ -9,6 +9,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 
+from . import config
 from .io_utils import write_csv
 from .services import extract_data, categorize_data
 
@@ -18,16 +19,10 @@ app = FastAPI()
 static_dir = Path(__file__).parent / "static"
 app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
-# Project paths
-PROJECT_ROOT = Path(__file__).parent.parent.parent
-BANK_STATEMENTS_DIR = PROJECT_ROOT / "bank_statements"
-OUTPUT_DIR = PROJECT_ROOT / "output"
-EXTRACTED_RAW_DIR = OUTPUT_DIR / "extracted_raw"
-CATEGORISED_DIR = OUTPUT_DIR / "categorised"
 
-# Ensure output directories exist
-EXTRACTED_RAW_DIR.mkdir(parents=True, exist_ok=True)
-CATEGORISED_DIR.mkdir(parents=True, exist_ok=True)
+@app.on_event("startup")
+async def _ensure_dirs() -> None:
+    config.ensure_dirs()
 
 class ExtractRequest(BaseModel):
     files: List[str]
@@ -45,16 +40,16 @@ async def read_index():
 async def list_files():
     """List all PDF files in the bank_statements directory."""
     files = []
-    if BANK_STATEMENTS_DIR.exists():
-        files = [f.name for f in BANK_STATEMENTS_DIR.glob("*.pdf")]
+    if config.bank_statements_dir().exists():
+        files = [f.name for f in config.bank_statements_dir().glob("*.pdf")]
     return {"files": sorted(files)}
 
 @app.get("/api/csv-files")
 async def list_csv_files():
     """List CSV files in output/extracted_raw directory."""
     files = []
-    if EXTRACTED_RAW_DIR.exists():
-        files = [f.name for f in EXTRACTED_RAW_DIR.glob("*.csv")]
+    if config.extracted_raw_dir().exists():
+        files = [f.name for f in config.extracted_raw_dir().glob("*.csv")]
     return {"files": sorted(files)}
 
 @app.post("/api/extract")
@@ -63,8 +58,8 @@ async def extract_files(req: ExtractRequest):
     if not req.files:
         raise HTTPException(status_code=400, detail="No files provided")
 
-    pdf_paths = [BANK_STATEMENTS_DIR / f for f in req.files]
-    
+    pdf_paths = [config.bank_statements_dir() / f for f in req.files]
+
     try:
         all_rows = extract_data(pdf_paths)
     except Exception as e:
@@ -73,8 +68,9 @@ async def extract_files(req: ExtractRequest):
     if not all_rows:
         return {"message": "No transactions extracted", "output_file": None}
 
+    config.ensure_dirs()
     today = date.today().strftime("%Y-%m-%d_%H-%M")
-    output_file = EXTRACTED_RAW_DIR / f"{today}_extracted_raw.csv"
+    output_file = config.extracted_raw_dir() / f"{today}_extracted_raw.csv"
     
     write_csv(all_rows, str(output_file), include_category=False)
     
@@ -95,7 +91,7 @@ async def categorize_files(req: CategorizeRequest):
     
     if is_csv:
         # Load from extracted_raw
-        paths = [EXTRACTED_RAW_DIR / f for f in req.files]
+        paths = [config.extracted_raw_dir() / f for f in req.files]
         try:
             from .services import load_csv_data
             all_rows = load_csv_data(paths)
@@ -103,7 +99,7 @@ async def categorize_files(req: CategorizeRequest):
             raise HTTPException(status_code=500, detail=f"Error loading CSVs: {str(e)}")
     else:
         # Extract from PDFs
-        paths = [BANK_STATEMENTS_DIR / f for f in req.files]
+        paths = [config.bank_statements_dir() / f for f in req.files]
         try:
             all_rows = extract_data(paths)
         except Exception as e:
@@ -117,8 +113,9 @@ async def categorize_files(req: CategorizeRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error categorizing: {str(e)}")
 
+    config.ensure_dirs()
     today = date.today().strftime("%Y-%m-%d_%H-%M")
-    output_file = CATEGORISED_DIR / f"{today}_categorised_{req.mode}.csv"
+    output_file = config.categorised_dir() / f"{today}_categorised_{req.mode}.csv"
     
     write_csv(all_rows, str(output_file), include_category=True)
 

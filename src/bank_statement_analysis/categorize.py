@@ -12,6 +12,8 @@ from typing import Optional
 import pandas as pd
 from joblib import load
 
+from . import config
+
 # Load env from project root .env
 load_dotenv()
 
@@ -57,8 +59,7 @@ class CategorizedTransaction(Transaction):
 
 
 def _build_system_prompt(version: str = "v1") -> str:
-    project_root = Path(__file__).parent.parent.parent
-    prompt_path = project_root / "prompts" / f"{version}.txt"
+    prompt_path = config.prompts_dir() / f"{version}.txt"
     if not prompt_path.exists():
         raise FileNotFoundError(f"Prompt file not found: {prompt_path}")
     return prompt_path.read_text().strip()
@@ -150,7 +151,7 @@ def categorize_transactions(transactions: List[Transaction], model: str = "gpt-5
 
 
 def _default_local_model_path() -> Path:
-    return Path(__file__).parent.parent.parent / "models" / "transactions_classifier.joblib"
+    return config.models_dir() / "transactions_classifier.joblib"
 
 
 def categorize_transactions_local(

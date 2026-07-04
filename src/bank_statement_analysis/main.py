@@ -5,6 +5,7 @@ from typing import Optional
 import typer
 
 
+from . import config
 from .io_utils import write_csv
 from .services import extract_data, categorize_data
 
@@ -13,8 +14,7 @@ app = typer.Typer(help="Extract transactions from FNB PDF statements and export 
 
 
 def _gather_pdfs(input_pdfs: Optional[list[Path]], all_: bool) -> list[Path]:
-    project_root = Path(__file__).parent.parent.parent
-    statements_dir = project_root / "bank_statements"
+    statements_dir = config.bank_statements_dir()
     pdfs: list[Path] = []
     if all_:
         pdfs.extend(sorted(statements_dir.glob("*.pdf")))
@@ -51,9 +51,8 @@ def run(
     
     # Generate output filename in format: {date}_output_transactions_{categorize_mode}
     if output == Path("transactions.csv"):  # Use default format only if using default output
-        project_root = Path(__file__).parent.parent.parent
-        output_dir = project_root / "output"
-        output_dir.mkdir(exist_ok=True)
+        output_dir = config.output_dir()
+        output_dir.mkdir(parents=True, exist_ok=True)
         mode = categorize_mode if categorize else "uncategorized"
         today = date.today().strftime("%Y-%m-%d")
         output = output_dir / f"{today}_output_transactions_{mode}.csv"

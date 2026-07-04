@@ -19,8 +19,16 @@ dependencies = [
 [project.scripts]
 bank-statement-analysis = "bank_statement_analysis.main:app"
 train-transactions-model = "bank_statement_analysis.train_model:main"
-print-pdf-texts = "bank_statement_analysis.print_pdf_texts:main"
+
+[tool.pytest.ini_options]
+testpaths = ["src/tests"]
 
 [build-system]
 requires = ["uv_build>=0.8.22,<0.9.0"]
 build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28.1",
+    "pytest>=9.1.1",
+]

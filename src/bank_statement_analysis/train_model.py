@@ -13,6 +13,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler, FunctionTransformer
 from joblib import dump
 
+from . import config
 from .categorize import CATEGORY_LABELS, Category
 
 
@@ -24,15 +25,13 @@ def _to_2d_array(x):
 
 
 def _default_model_path() -> Path:
-    project_root = Path(__file__).parent.parent.parent
-    models_dir = project_root / "models"
+    models_dir = config.models_dir()
     models_dir.mkdir(parents=True, exist_ok=True)
     return models_dir / "transactions_classifier.joblib"
 
 
 def _default_training_data_path() -> Path:
-    project_root = Path(__file__).parent.parent.parent
-    training_data_dir = project_root / "models" / "training_data"
+    training_data_dir = config.training_data_dir()
     training_data_dir.mkdir(parents=True, exist_ok=True)
     return training_data_dir / "transactions_categorised_training.csv"
 
