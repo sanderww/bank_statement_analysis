@@ -145,6 +145,32 @@ promote → train v1 → insights). Ready for user testing at http://127.0.0.1:8
 49 tests green; hand-off round trip, final export and prompt editing verified
 live against the running server. Server now runs with `--reload`.
 
+## Syncing between machines (git bundle)
+
+This repo is synced Mac-to-Mac by copying a git bundle (no push to the shared
+remote needed). Full bundles are idempotent and safest.
+
+**Create (source Mac):**
+```bash
+git bundle create ../bank_statement_analysis-$(date +%Y-%m-%d).bundle --all
+git bundle verify ../bank_statement_analysis-<date>.bundle
+```
+
+**Apply (receiving Mac):**
+```bash
+git bundle verify /path/to/bank_statement_analysis-<date>.bundle
+git fetch /path/to/bank_statement_analysis-<date>.bundle dev:refs/remotes/bundle/dev
+git checkout dev
+git merge bundle/dev        # normal case (fast-forward)
+# OR, if history was rewritten on the source (as on 2026-07-04, authors reset):
+git reset --hard bundle/dev # stash/commit local changes first!
+```
+
+**One-off after the 2026-07-05 bundle** (history was rewritten): use the
+`reset --hard` variant, then retrain the local model — the old single-file
+artefact and 1–9 category labels are retired. Flow: categorise a statement →
+review → "Add to training data" → Setup → Train.
+
 ## Backlog (not doable on this Mac / user decision)
 
 - Git history rewrite to purge the committed real-data model artefact (user
