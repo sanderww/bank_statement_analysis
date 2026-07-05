@@ -182,6 +182,17 @@ review → "Add to training data" → Setup → Train.
 
 ## Log
 
+- **2026-07-05** — **Controllable-cost classification** added end to end
+  (02ec5d3): per-transaction `controllable` (yes/no) — consumption you can
+  influence short-term vs fixed/committed. In prompt v2 (folds in the user's
+  electricity note per-transaction instead of an 11th category, which would
+  invalidate the 0-10 label space), OpenAI structured output, local-model
+  category defaults, hand-off round trip, review UI column (+ default pre-fill
+  on category change), final export, and insights (controllable/fixed metric
+  cards + stacked monthly chart). Example run: the 2026-07-05 extract (107 rows)
+  categorised via the Claude Code hand-off → `2026-07-05_11-34_categorised_claude.csv`,
+  ready for review in the UI. 51 tests green.
+
 - **2026-07-05** — Docs reorganised: this doc moved into the repo as the main
   tracker; superseded docs → `docs/archived/`. **Redacted real statement data**
   (name, address, account number, transactions) found in the old project brief —
