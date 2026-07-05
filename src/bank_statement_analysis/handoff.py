@@ -24,7 +24,7 @@ from datetime import datetime
 from pathlib import Path
 
 from . import config, prompt_store
-from .categories import VALID_CODES, label as category_label
+from .categories import VALID_CODES, default_controllable, label as category_label
 from .io_utils import write_csv
 from .services import load_csv_data
 
@@ -93,10 +93,13 @@ Each request row has: `id, date, direction, amount, description`.
 `direction` is `in` (money in / credit) or `out` (money out / debit); `amount`
 is signed accordingly.
 
-**Output:** write a results CSV with exactly two columns — `id,category` — one
-row per transaction, where `id` matches the request and `category` is an
-integer **0-10**. Save it as `results_{stamp}.csv` in this same folder, then
-import it in the app (step 2 → Claude Code hand-off).
+**Output:** write a results CSV with columns — `id,category,controllable` — one
+row per transaction, where `id` matches the request, `category` is an integer
+**0-10**, and `controllable` is `yes`/`no` (yes = a consumption cost the account
+holder can influence short-term, e.g. eating out, petrol, electricity usage,
+groceries; no = fixed/committed costs and all income/unknown rows). Save it as
+`results_{stamp}.csv` in this same folder, then import it in the app
+(step 2 → Claude Code hand-off).
 
 ## Prompt ({prompt_version})
 
@@ -154,6 +157,10 @@ def import_results(results_name: str) -> dict:
             if 0 <= idx < len(rows) and cat in VALID_CODES:
                 rows[idx]["category"] = cat
                 rows[idx]["category_label"] = category_label(cat)
+                ctrl = (raw.get("controllable") or "").strip().lower()
+                if ctrl not in ("yes", "no"):  # absent/invalid -> category default
+                    ctrl = "yes" if default_controllable(cat) else "no"
+                rows[idx]["controllable"] = ctrl
                 rows[idx]["source"] = "claude"
                 applied += 1
             else:

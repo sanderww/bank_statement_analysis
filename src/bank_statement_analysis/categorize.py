@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 import logging
 
 from . import config
-from .categories import CATEGORY_LABELS, Category
+from .categories import CATEGORY_LABELS, Category, default_controllable
 
 # Load env from project root .env
 load_dotenv()
@@ -26,6 +26,13 @@ class Transaction(BaseModel):
 class CategorizedTransaction(Transaction):
     category: Category = Field(..., description="Category enum 0..10 (0=Unknown, 10=Income)")
     category_label: str
+    controllable: bool = Field(
+        ...,
+        description="True if this is a controllable/consumption cost the account "
+                    "holder can influence short-term (eating out, petrol, "
+                    "electricity usage, groceries); False for fixed/committed "
+                    "costs (mortgage, school fees, insurance) and for income.",
+    )
 
 
 def _build_system_prompt(version: str = "v1") -> str:
@@ -79,6 +86,7 @@ def categorize_transactions(
                 **tx.model_dump(),
                 category=Category.UNKNOWN,
                 category_label=CATEGORY_LABELS[Category.UNKNOWN],
+                controllable=default_controllable(Category.UNKNOWN),
             )
 
         if not item.category_label:

@@ -149,6 +149,7 @@ def categorize_data(
     for i, c in enumerate(categorized):
         rows[i]["category"] = int(c.category)
         rows[i]["category_label"] = c.category_label
+        rows[i]["controllable"] = "yes" if c.controllable else "no"
         rows[i]["source"] = "openai"
 
     return rows

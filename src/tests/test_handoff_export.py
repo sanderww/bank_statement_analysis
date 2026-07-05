@@ -62,14 +62,16 @@ def test_handoff_round_trip(client):
     assert [r["id"] for r in req_rows] == ["0", "1"]
     assert req_rows[1]["amount"] == "40000.00"
 
-    # simulate a Claude session writing the results file (one invalid row)
+    # simulate a Claude session writing the results file (one invalid row).
+    # Row 0 carries an explicit controllable override; row 1 omits the column
+    # value -> falls back to the category default.
     results_name = data["expected_results_name"]
     with open(config.handoff_dir() / results_name, "w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
-        w.writerow(["id", "category"])
-        w.writerow([0, 2])
-        w.writerow([1, 10])
-        w.writerow([99, 5])  # unknown id -> skipped
+        w.writerow(["id", "category", "controllable"])
+        w.writerow([0, 2, "no"])   # groceries, explicitly NOT controllable
+        w.writerow([1, 10, ""])    # income, default -> no
+        w.writerow([99, 5, "yes"])  # unknown id -> skipped
 
     assert results_name in client.get("/api/handoff").json()["results"]
 
@@ -82,8 +84,13 @@ def test_handoff_round_trip(client):
     # output is a normal categorised CSV, reviewable
     review = client.get(f"/api/review/{idata['output_name']}").json()
     assert review["rows"][0]["category"] == 2
+    assert review["rows"][0]["controllable"] == "no"   # explicit override kept
     assert review["rows"][0]["source"] == "claude"
     assert review["rows"][1]["category"] == 10
+    assert review["rows"][1]["controllable"] == "no"   # income default
+
+    # instructions mention the controllable column
+    assert "controllable" in instructions
 
 
 def test_handoff_import_validates_name_and_existence(client):
@@ -103,11 +110,12 @@ def test_export_final_decoupled(client):
         {"date": "05-01-2026", "description": "POS Purchase Grocer", "amount": 200.0,
          "balance": 700.0, "direction": "out", "signed_amount": -200.0,
          "source_statement": "jan.pdf", "category": 2,
-         "category_label": "Groceries & Household", "source": "user", "confidence": ""},
+         "category_label": "Groceries & Household", "controllable": "yes",
+         "source": "user", "confidence": ""},
         {"date": "06-01-2026", "description": "Unfinished row", "amount": 10.0,
          "balance": 690.0, "direction": "out", "signed_amount": -10.0,
          "source_statement": "jan.pdf", "category": "", "category_label": "",
-         "source": "", "confidence": ""},
+         "controllable": "", "source": "", "confidence": ""},
     ]
     name = "2026-01-31_categorised_openai.csv"
     write_csv(rows, str(config.categorised_dir() / name), include_category=True)
@@ -125,6 +133,7 @@ def test_export_final_decoupled(client):
     assert header == FINAL_COLUMNS
     assert "balance" not in header and "confidence" not in header  # decoupled
     assert body[0][2] == "-200.00"          # signed amount
+    assert body[0][header.index("controllable")] == "yes"
     assert body[0][-1] == "jan.pdf"         # traceable to source statement
 
 

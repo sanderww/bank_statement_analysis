@@ -45,6 +45,8 @@ def aggregate(rows: Iterable[dict[str, Any]]) -> dict[str, Any]:
 
     total_income = 0.0
     total_costs = 0.0
+    total_controllable = 0.0
+    total_fixed = 0.0
     n_categorised = 0
     n_uncategorised = 0
     by_category: dict[int, dict[str, Any]] = {}
@@ -53,33 +55,45 @@ def aggregate(rows: Iterable[dict[str, Any]]) -> dict[str, Any]:
     for r in rows:
         cat = _category(r)
         amount = abs(_signed_amount(r))
+        is_controllable = str(r.get("controllable") or "").strip().lower() == "yes"
 
         if cat == INCOME_CODE:
             total_income += amount
             n_categorised += 1
         elif cat in COST_CODES:
             total_costs += amount
+            if is_controllable:
+                total_controllable += amount
+            else:
+                total_fixed += amount
             n_categorised += 1
             agg = by_category.setdefault(cat, {"category": cat, "label": label(cat),
-                                               "amount": 0.0, "count": 0})
+                                               "amount": 0.0, "count": 0,
+                                               "controllable_amount": 0.0})
             agg["amount"] += amount
             agg["count"] += 1
+            if is_controllable:
+                agg["controllable_amount"] += amount
         else:
             n_uncategorised += 1
 
         month = _month(r)
         if month and cat is not None:
-            m = by_month.setdefault(month, {"income": 0.0, "costs": 0.0})
+            m = by_month.setdefault(month, {"income": 0.0, "costs": 0.0,
+                                            "controllable": 0.0, "fixed": 0.0})
             if cat == INCOME_CODE:
                 m["income"] += amount
             elif cat in COST_CODES:
                 m["costs"] += amount
+                m["controllable" if is_controllable else "fixed"] += amount
 
     costs_by_category = sorted(by_category.values(), key=lambda a: a["amount"], reverse=True)
     for a in costs_by_category:
         a["amount"] = round(a["amount"], 2)
+        a["controllable_amount"] = round(a["controllable_amount"], 2)
     months = [
-        {"month": m, "income": round(v["income"], 2), "costs": round(v["costs"], 2)}
+        {"month": m, "income": round(v["income"], 2), "costs": round(v["costs"], 2),
+         "controllable": round(v["controllable"], 2), "fixed": round(v["fixed"], 2)}
         for m, v in sorted(by_month.items())
     ]
 
@@ -87,6 +101,8 @@ def aggregate(rows: Iterable[dict[str, Any]]) -> dict[str, Any]:
         "summary": {
             "total_income": round(total_income, 2),
             "total_costs": round(total_costs, 2),
+            "total_controllable": round(total_controllable, 2),
+            "total_fixed": round(total_fixed, 2),
             "net": round(total_income - total_costs, 2),
             "n_transactions": len(rows),
             "n_categorised": n_categorised,

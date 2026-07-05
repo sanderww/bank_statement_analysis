@@ -19,16 +19,22 @@ def _categorised_rows():
     return [
         {"date": "05-01-2026", "description": "POS Purchase Grocer", "amount": 200.0,
          "balance": 700.0, "direction": "out", "signed_amount": -200.0,
-         "category": 2, "category_label": "Groceries & Household", "source": "openai", "confidence": ""},
+         "category": 2, "category_label": "Groceries & Household", "controllable": "yes",
+         "source": "openai", "confidence": ""},
         {"date": "25-01-2026", "description": "Employer Payroll Credit", "amount": 40000.0,
          "balance": 40700.0, "direction": "in", "signed_amount": 40000.0,
-         "category": 10, "category_label": "Income", "source": "openai", "confidence": ""},
-        {"date": "26-01-2026", "description": "Petrol Station", "amount": 800.0,
+         "category": 10, "category_label": "Income", "controllable": "no",
+         "source": "openai", "confidence": ""},
+        # a committed transport cost (car payment): category default would be
+        # 'yes' but this row is explicitly not controllable
+        {"date": "26-01-2026", "description": "Vehicle Finance Debit Order", "amount": 800.0,
          "balance": 39900.0, "direction": "out", "signed_amount": -800.0,
-         "category": 4, "category_label": "Transport", "source": "local", "confidence": 0.55},
+         "category": 4, "category_label": "Transport", "controllable": "no",
+         "source": "local", "confidence": 0.55},
         {"date": "03-02-2026", "description": "Mystery Row", "amount": 10.0,
          "balance": 39890.0, "direction": "out", "signed_amount": -10.0,
-         "category": "", "category_label": "", "source": "", "confidence": ""},
+         "category": "", "category_label": "", "controllable": "",
+         "source": "", "confidence": ""},
     ]
 
 
@@ -48,8 +54,12 @@ def _seed_prompts():
 
 def test_categories_endpoint(client):
     cats = client.get("/api/categories").json()["categories"]
-    assert cats[0] == {"code": 0, "label": "Unknown"}
-    assert cats[-1] == {"code": 10, "label": "Income"}
+    assert cats[0] == {"code": 0, "label": "Unknown", "default_controllable": False}
+    assert cats[-1] == {"code": 10, "label": "Income", "default_controllable": False}
+    by_code = {c["code"]: c for c in cats}
+    assert by_code[6]["default_controllable"] is True   # Dining
+    assert by_code[2]["default_controllable"] is True   # Groceries
+    assert by_code[5]["default_controllable"] is False  # Health & Insurance
     assert len(cats) == 11
 
 
@@ -95,13 +105,17 @@ def test_review_load_save_roundtrip(client):
     rows = data["rows"]
     assert len(rows) == 4
     assert rows[0]["category"] == 2
+    assert rows[0]["controllable"] == "yes"
     assert rows[2]["confidence"] == 0.55
+    assert rows[2]["controllable"] == "no"  # explicit per-row value survives
     assert rows[3]["category"] is None
 
-    # user fixes the mystery row and re-categorises row 0
+    # user fixes the mystery row (no controllable set -> server pre-fills the
+    # category default) and re-categorises row 0
     rows[3]["category"] = 6
     rows[3]["source"] = "user"
     rows[0]["category"] = 1
+    rows[0]["controllable"] = "no"
     rows[0]["source"] = "user"
     res = client.put(f"/api/review/{name}", json={"rows": rows})
     assert res.status_code == 200
@@ -109,8 +123,10 @@ def test_review_load_save_roundtrip(client):
     reloaded = client.get(f"/api/review/{name}").json()["rows"]
     assert reloaded[0]["category"] == 1
     assert reloaded[0]["category_label"] == "Housing & Utilities"  # recomputed
+    assert reloaded[0]["controllable"] == "no"
     assert reloaded[0]["source"] == "user"
     assert reloaded[3]["category"] == 6
+    assert reloaded[3]["controllable"] == "yes"  # Dining default pre-filled
 
 
 def test_review_rejects_bad_category_and_traversal(client):
@@ -159,12 +175,18 @@ def test_insights_endpoint(client):
     data = res.json()
     assert data["summary"]["total_income"] == 40000.0
     assert data["summary"]["total_costs"] == 1000.0
+    assert data["summary"]["total_controllable"] == 200.0  # groceries
+    assert data["summary"]["total_fixed"] == 800.0         # vehicle finance
     assert data["summary"]["net"] == 39000.0
     assert data["summary"]["n_uncategorised"] == 1
     # costs by category sorted by amount desc: transport 800 > groceries 200
     assert [c["category"] for c in data["costs_by_category"]] == [4, 2]
+    by_cat = {c["category"]: c for c in data["costs_by_category"]}
+    assert by_cat[2]["controllable_amount"] == 200.0
+    assert by_cat[4]["controllable_amount"] == 0.0
     assert data["by_month"] == [
-        {"month": "2026-01", "income": 40000.0, "costs": 1000.0},
+        {"month": "2026-01", "income": 40000.0, "costs": 1000.0,
+         "controllable": 200.0, "fixed": 800.0},
     ]
 
 

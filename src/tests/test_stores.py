@@ -98,7 +98,9 @@ def test_model_train_versioned_and_predict_with_confidence(data_root):
     model_store.predict_rows(rows)
     assert rows[0]["category"] == 2
     assert rows[0]["category_label"] == "Groceries & Household"
+    assert rows[0]["controllable"] == "yes"  # groceries default
     assert rows[1]["category"] == 10
+    assert rows[1]["controllable"] == "no"   # income default
     assert rows[0]["source"] == "local"
     assert 0.0 <= rows[0]["confidence"] <= 1.0
 

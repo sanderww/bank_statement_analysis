@@ -17,7 +17,7 @@ from .io_utils import read_csv
 
 FINAL_COLUMNS = [
     "date", "description", "amount", "direction",
-    "category", "category_label", "source_statement",
+    "category", "category_label", "controllable", "source_statement",
 ]
 
 
@@ -51,6 +51,7 @@ def export_final(categorised_filename: str) -> dict:
                 r.get("direction", ""),
                 cat,
                 category_label(cat),
+                r.get("controllable", ""),
                 r.get("source_statement", ""),
             ])
             written += 1

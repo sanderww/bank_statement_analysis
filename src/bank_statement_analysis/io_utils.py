@@ -4,7 +4,7 @@ from typing import Iterable
 
 
 BASE_FIELDS = ["date", "description", "amount", "balance", "direction", "signed_amount", "source_statement"]
-CAT_FIELDS = BASE_FIELDS + ["category", "category_label", "source", "confidence"]
+CAT_FIELDS = BASE_FIELDS + ["category", "category_label", "controllable", "source", "confidence"]
 
 
 def write_csv(rows: Iterable[dict], output_path: str, include_category: bool, append: bool = False) -> None:

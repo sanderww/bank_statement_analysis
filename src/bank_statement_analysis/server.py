@@ -10,7 +10,13 @@ from pydantic import BaseModel
 
 from . import config, export, handoff, insights, model_store, prompt_store, training_data
 from . import settings as app_settings
-from .categories import CATEGORY_LABELS, Category, VALID_CODES, label as category_label
+from .categories import (
+    CATEGORY_LABELS,
+    Category,
+    VALID_CODES,
+    default_controllable,
+    label as category_label,
+)
 from .io_utils import read_csv, write_csv
 from .services import extract_data, categorize_data, load_csv_data
 
@@ -135,8 +141,12 @@ async def categorize_files(req: CategorizeRequest):
 
 @app.get("/api/categories")
 async def get_categories():
-    """The fixed 0-10 category set for UI dropdowns."""
-    return {"categories": [{"code": int(c), "label": CATEGORY_LABELS[c]} for c in Category]}
+    """The fixed 0-10 category set (+ default controllable flag) for the UI."""
+    return {"categories": [
+        {"code": int(c), "label": CATEGORY_LABELS[c],
+         "default_controllable": default_controllable(int(c))}
+        for c in Category
+    ]}
 
 
 class SettingsUpdate(BaseModel):
@@ -285,6 +295,7 @@ async def load_review(filename: str):
                 r[k] = float(r[k])
         r["category"] = int(float(r["category"])) if r.get("category") not in (None, "") else None
         r["confidence"] = float(r["confidence"]) if r.get("confidence") not in (None, "") else None
+        r["controllable"] = r.get("controllable") or ""
     return {
         "filename": filename,
         "rows": rows,
@@ -310,6 +321,12 @@ async def save_review(filename: str, req: ReviewSave):
             cat = int(cat)
             if cat not in VALID_CODES:
                 raise HTTPException(status_code=400, detail=f"Invalid category code: {cat}")
+        controllable = (r.get("controllable") or "").strip().lower()
+        if controllable not in ("", "yes", "no"):
+            raise HTTPException(status_code=400, detail=f"controllable must be yes/no/empty, got: {controllable}")
+        if cat is not None and controllable == "":
+            # pre-fill the category default when the user hasn't set it
+            controllable = "yes" if default_controllable(cat) else "no"
         cleaned.append({
             "date": r.get("date", ""),
             "description": r.get("description", ""),
@@ -320,6 +337,7 @@ async def save_review(filename: str, req: ReviewSave):
             "source_statement": r.get("source_statement", ""),
             "category": cat if cat is not None else "",
             "category_label": category_label(cat) if cat is not None else "",
+            "controllable": controllable if cat is not None else "",
             "source": r.get("source", ""),
             "confidence": r.get("confidence", "") if r.get("confidence") is not None else "",
         })

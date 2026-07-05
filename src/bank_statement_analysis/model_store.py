@@ -24,7 +24,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
 from . import config, settings
-from .categories import label as category_label
+from .categories import default_controllable, label as category_label
 
 FEATURE_SET = "description+signed_amount+abs_amount"
 TEXT_COL = "description"
@@ -205,5 +205,8 @@ def predict_rows(rows: Sequence[dict[str, Any]]) -> None:
         best = prob_row.argmax()
         r["category"] = int(classes[best])
         r["category_label"] = category_label(int(classes[best]))
+        # Category-level default — the model doesn't predict this per row;
+        # refine in review or via the LLM/hand-off paths.
+        r["controllable"] = "yes" if default_controllable(int(classes[best])) else "no"
         r["source"] = "local"
         r["confidence"] = round(float(prob_row[best]), 4)

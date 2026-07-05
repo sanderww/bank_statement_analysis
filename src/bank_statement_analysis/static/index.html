@@ -348,6 +348,7 @@
                                         <th class="py-2.5 px-3 font-semibold text-right">Amount</th>
                                         <th class="py-2.5 px-3 font-semibold">Dir</th>
                                         <th class="py-2.5 px-3 font-semibold">Category</th>
+                                        <th class="py-2.5 px-3 font-semibold" title="Controllable cost: consumption you can influence short-term (eating out, petrol, electricity, groceries)">Ctrl?</th>
                                         <th class="py-2.5 px-3 font-semibold">Source</th>
                                         <th class="py-2.5 px-3 font-semibold text-right">Conf</th>
                                     </tr>
@@ -387,7 +388,7 @@
                     </div>
 
                     <div id="insights-content" class="hidden">
-                        <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-8" id="insights-metrics"></div>
+                        <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-8" id="insights-metrics"></div>
                         <div class="grid md:grid-cols-2 gap-8 items-start">
                             <div>
                                 <h3 class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Costs by category</h3>
@@ -718,12 +719,33 @@
                 class="input-field text-xs py-1 px-2 max-w-[210px]">${opts.join('')}</select>`;
         }
 
+        function controllableSelectHTML(row) {
+            const val = row.controllable || '';
+            return `<select data-row="${row.row}" onchange="onControllableEdit(this)"
+                class="input-field text-xs py-1 px-2 ${val === 'yes' ? 'text-amber-700 font-medium' : ''}">
+                <option value="" ${val === '' ? 'selected' : ''}>—</option>
+                <option value="yes" ${val === 'yes' ? 'selected' : ''}>yes</option>
+                <option value="no" ${val === 'no' ? 'selected' : ''}>no</option>
+            </select>`;
+        }
+
         function onCategoryEdit(sel) {
             const row = reviewRows.find(r => r.row === Number(sel.dataset.row));
             if (!row) return;
             row.category = sel.value === '' ? null : Number(sel.value);
+            // pre-fill the controllable default for the chosen category (user can override)
+            const cat = CATEGORIES.find(c => c.code === row.category);
+            row.controllable = row.category === null ? '' : (cat?.default_controllable ? 'yes' : 'no');
             row.source = 'user';
             row.confidence = null;
+            renderReviewTable();
+        }
+
+        function onControllableEdit(sel) {
+            const row = reviewRows.find(r => r.row === Number(sel.dataset.row));
+            if (!row) return;
+            row.controllable = sel.value;
+            row.source = 'user';
             renderReviewSummary();
         }
 
@@ -735,8 +757,10 @@
             const total = reviewRows.length;
             const categorised = reviewRows.filter(r => r.category !== null).length;
             const lowConf = reviewRows.filter(isLowConf).length;
+            const controllable = reviewRows.filter(r => r.controllable === 'yes').length;
             document.getElementById('review-summary').textContent =
                 `${total} transactions · ${categorised} categorised · ${total - categorised} uncategorised · ` +
+                `${controllable} controllable · ` +
                 `${lowConf} low-confidence (< ${Math.round(reviewThreshold * 100)}%) — flagged`;
         }
 
@@ -772,10 +796,11 @@
                     <td class="py-2 px-3 text-right whitespace-nowrap tabular-nums ${r.direction === 'in' ? 'text-green-600 font-semibold' : 'text-slate-700'}">${Number(r.signed_amount).toFixed(2)}</td>
                     <td class="py-2 px-3 text-xs text-slate-500">${esc(r.direction)}</td>
                     <td class="py-2 px-3">${categorySelectHTML(r)}</td>
+                    <td class="py-2 px-3">${controllableSelectHTML(r)}</td>
                     <td class="py-2 px-3 text-xs text-slate-500">${esc(r.source || '')}</td>
                     <td class="py-2 px-3 text-right text-xs tabular-nums ${isLowConf(r) ? 'text-amber-600 font-semibold' : 'text-slate-400'}">${r.confidence != null ? Number(r.confidence).toFixed(2) : '—'}</td>
                 </tr>
-            `).join('') || '<tr><td colspan="7" class="py-6 text-center text-slate-400 text-sm">No rows match the filters.</td></tr>';
+            `).join('') || '<tr><td colspan="8" class="py-6 text-center text-slate-400 text-sm">No rows match the filters.</td></tr>';
 
             const pag = document.getElementById('review-pagination');
             if (rows.length > REVIEW_PAGE_SIZE) {
@@ -844,6 +869,8 @@
                 document.getElementById('insights-metrics').innerHTML = [
                     ['Income', fmt(s.total_income), 'text-green-600'],
                     ['Costs', fmt(s.total_costs), 'text-red-600'],
+                    ['Controllable', fmt(s.total_controllable ?? 0), 'text-amber-600'],
+                    ['Fixed', fmt(s.total_fixed ?? 0), 'text-slate-600'],
                     ['Net', fmt(s.net), s.net >= 0 ? 'text-green-600' : 'text-red-600'],
                     ['Categorised', s.n_categorised, 'text-slate-800'],
                     ['Uncategorised', s.n_uncategorised, s.n_uncategorised ? 'text-amber-600' : 'text-slate-800'],
@@ -874,14 +901,18 @@
                     data: {
                         labels: data.by_month.map(m => m.month),
                         datasets: [
-                            { label: 'Income', data: data.by_month.map(m => m.income), backgroundColor: '#10b981' },
-                            { label: 'Costs', data: data.by_month.map(m => m.costs), backgroundColor: '#ef4444' },
+                            { label: 'Income', data: data.by_month.map(m => m.income),
+                              backgroundColor: '#10b981', stack: 'income' },
+                            { label: 'Controllable costs', data: data.by_month.map(m => m.controllable ?? 0),
+                              backgroundColor: '#f59e0b', stack: 'costs' },
+                            { label: 'Fixed costs', data: data.by_month.map(m => m.fixed ?? 0),
+                              backgroundColor: '#ef4444', stack: 'costs' },
                         ]
                     },
                     options: {
                         scales: {
-                            y: { beginAtZero: true, grid: { color: '#e2e8f0' } },
-                            x: { grid: { display: false } },
+                            y: { beginAtZero: true, stacked: true, grid: { color: '#e2e8f0' } },
+                            x: { stacked: true, grid: { display: false } },
                         }
                     }
                 });
