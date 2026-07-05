@@ -33,8 +33,6 @@ workflow:
 5. **Setup** — manage prompt versions, model versions (train/activate), the
    training data, and settings (e.g. the low-confidence threshold).
 
-![Web UI Screenshot](docs/images/ui_screenshot.png)
-
 ### The improvement loop
 
 ```
@@ -79,6 +77,8 @@ uv run train-transactions-model
 - `prompts/v{N}.txt` — versioned categorisation prompts.
 - `settings.json` — machine-local state: active prompt/model version, threshold (gitignored).
 - `src/` — core Python source; `src/bank_statement_analysis/static/` — web UI.
+- `docs/WORKING_DOC.md` — the living project tracker (plan, decisions, log);
+  superseded docs are in `docs/archived/`.
 
 ## 🔒 Privacy
 
