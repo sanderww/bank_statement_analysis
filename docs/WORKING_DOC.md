@@ -156,6 +156,14 @@ live against the running server. Server now runs with `--reload`.
 
 ## Log
 
+- **2026-07-05** — Docs reorganised: this doc moved into the repo as the main
+  tracker; superseded docs → `docs/archived/`. **Redacted real statement data**
+  (name, address, account number, transactions) found in the old project brief —
+  original remains in git history; history rewrite now covers TWO leaks (model
+  artefact + project.md). Restyled UI to match budget_calculator (388ae99).
+  Remote push postponed (no sanderww credential on this machine) — syncing to
+  the other Mac via git bundle instead; commits re-authored as sanderww.
+
 - **2026-07-04** — Cloned prototype + V1 side by side; renamed; created this doc.
 - **2026-07-04** — Both apps run locally: V1 `:8000` (uvicorn), prototype `:8501`
   (streamlit). Prototype `.venv` had stale shebangs after rename → launch via
