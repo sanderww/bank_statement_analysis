@@ -182,6 +182,18 @@ review → "Add to training data" → Setup → Train.
 
 ## Log
 
+- **2026-07-06** — UX restructure (77a9247): the app now has two top-level
+  journeys — **Analyse statements** (extract → categorise → review & fix →
+  insights/export) and **Improve the model** (test the active model against a
+  reviewed file via new `/api/models/evaluate` with per-category accuracy →
+  promote reviewed files to training data → train new version → test again).
+  Setup drawer slims to General + Prompts. Action feedback moved from the
+  bottom-of-page status box to **toasts** + a persistent **activity log**
+  (`activity.py`, `activity_log.jsonl` gitignored, `/api/activity`, drawer with
+  category filter chips); all server actions log events. 57 tests green.
+  Live check: current model scores ~34% against the reviewed 2026-07-05 file —
+  the improvement loop has a baseline to beat.
+
 - **2026-07-05** — **Controllable-cost classification** added end to end
   (02ec5d3): per-transaction `controllable` (yes/no) — consumption you can
   influence short-term vs fixed/committed. In prompt v2 (folds in the user's
