@@ -8,7 +8,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 
-from . import config, export, handoff, insights, model_store, prompt_store, training_data
+from . import activity, config, export, handoff, insights, model_store, prompt_store, training_data
 from . import settings as app_settings
 from .categories import (
     CATEGORY_LABELS,
@@ -84,7 +84,9 @@ async def extract_files(req: ExtractRequest):
     output_file = config.extracted_raw_dir() / f"{today}_extracted_raw.csv"
     
     write_csv(all_rows, str(output_file), include_category=False)
-    
+
+    activity.log_event("extract", f"Extracted {len(all_rows)} transactions from "
+                                  f"{len(req.files)} PDF(s) → {output_file.name}")
     return {"message": f"Extracted {len(all_rows)} transactions", "output_file": str(output_file)}
 
 @app.post("/api/categorize")
@@ -132,6 +134,8 @@ async def categorize_files(req: CategorizeRequest):
 
     write_csv(all_rows, str(output_file), include_category=True)
 
+    activity.log_event("categorise", f"Categorised {len(all_rows)} transactions "
+                                     f"({req.mode}) → {output_file.name}")
     return {"message": f"Categorized {len(all_rows)} transactions", "output_file": str(output_file)}
 
 
@@ -164,7 +168,9 @@ async def update_settings(req: SettingsUpdate):
     values = {k: v for k, v in req.model_dump().items() if v is not None}
     if "confidence_threshold" in values and not (0.0 <= values["confidence_threshold"] <= 1.0):
         raise HTTPException(status_code=400, detail="confidence_threshold must be between 0 and 1")
-    return app_settings.save(values)
+    saved = app_settings.save(values)
+    activity.log_event("settings", "Settings updated: " + ", ".join(f"{k}={v}" for k, v in values.items()))
+    return saved
 
 
 # --------------------------------------------------------------------------
@@ -190,6 +196,7 @@ async def create_prompt(req: PromptCreate):
         version = prompt_store.add_version(req.text)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    activity.log_event("prompts", f"New prompt version {version} created and activated")
     return {"message": f"Saved prompt {version} and made it active", "version": version}
 
 
@@ -199,6 +206,7 @@ async def activate_prompt(req: PromptActivate):
         prompt_store.set_active(req.version)
     except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
+    activity.log_event("prompts", f"Prompt {req.version} activated")
     return {"message": f"Prompt {req.version} is now active", "active": req.version}
 
 
@@ -211,6 +219,7 @@ async def update_prompt(version: str, req: PromptCreate):
         raise HTTPException(status_code=404, detail=str(e))
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    activity.log_event("prompts", f"Prompt {version} edited in place")
     return {"message": f"Prompt {version} updated", "version": version}
 
 
@@ -233,6 +242,7 @@ async def activate_model(req: ModelActivate):
         model_store.set_active(req.version)
     except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
+    activity.log_event("training", f"Model v{req.version} activated")
     return {"message": f"Model v{req.version} is now active", "active": req.version}
 
 
@@ -251,8 +261,37 @@ async def train_model():
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    activity.log_event("training", f"Trained model v{summary['version']} on "
+                                   f"{summary['training_size']} rows — {summary['metrics']}")
     return {"message": f"Trained model v{summary['version']} on {summary['training_size']} rows",
             **summary}
+
+
+class ModelEvaluate(BaseModel):
+    file: str  # a reviewed categorised CSV to test against
+
+
+@app.post("/api/models/evaluate")
+async def evaluate_model(req: ModelEvaluate):
+    """Test the active model against a reviewed file's categories — the
+    'is it good enough yet?' check in the improvement flow."""
+    path = _safe_categorised_path(req.file)
+    rows = read_csv(str(path))
+    for r in rows:
+        r["signed_amount"] = float(r.get("signed_amount") or 0.0)
+    try:
+        res = model_store.evaluate(rows)
+    except model_store.ModelUnavailable as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    activity.log_event("training", f"Evaluated model v{res['model_version']} against {req.file}: "
+                                   f"{res['accuracy']:.0%} on {res['n_rows']} rows")
+    return {
+        "message": f"Model v{res['model_version']} scores {res['accuracy']:.0%} "
+                   f"on {res['n_rows']} reviewed rows of {req.file}",
+        **res,
+    }
 
 
 @app.get("/api/training-data")
@@ -342,6 +381,9 @@ async def save_review(filename: str, req: ReviewSave):
             "confidence": r.get("confidence", "") if r.get("confidence") is not None else "",
         })
     write_csv(cleaned, str(path), include_category=True)
+    n_user = sum(1 for r in cleaned if r["source"] == "user")
+    activity.log_event("review", f"Saved review of {filename}: {len(cleaned)} rows "
+                                 f"({n_user} user-corrected)")
     return {"message": f"Saved {len(cleaned)} rows to {filename}"}
 
 
@@ -351,6 +393,9 @@ async def promote_to_training(filename: str):
     path = _safe_categorised_path(filename)
     rows = read_csv(str(path))
     res = training_data.promote_rows(rows)
+    activity.log_event("training", f"Promoted {filename} to training data: "
+                                   f"{res['added']} added, {res['skipped_duplicate']} duplicates, "
+                                   f"{res['skipped_invalid']} uncategorised skipped")
     return {
         "message": (
             f"Added {res['added']} rows to training data "
@@ -365,6 +410,8 @@ async def export_final_csv(filename: str):
     """Export the file's categorised rows as a decoupled final CSV."""
     _safe_categorised_path(filename)
     res = export.export_final(filename)
+    activity.log_event("export", f"Final CSV exported from {filename}: "
+                                 f"{res['rows']} rows → {res['name']}")
     return {
         "message": (
             f"Exported {res['rows']} rows to {res['name']} "
@@ -399,6 +446,8 @@ async def handoff_export(req: HandoffExport):
         res = handoff.export_for_categorisation(req.file)
     except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
+    activity.log_event("handoff", f"Exported {res['rows']} transactions of {req.file} "
+                                  f"for Claude Code (prompt {res['prompt_version']})")
     return {
         "message": (
             f"Exported {res['rows']} transactions (prompt {res['prompt_version']}). "
@@ -418,12 +467,27 @@ async def handoff_import(req: HandoffImport):
         raise HTTPException(status_code=404, detail=str(e))
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    activity.log_event("handoff", f"Imported {res['applied']} categories from {req.results} "
+                                  f"→ {res['output_name']}")
     return {
         "message": (
             f"Imported {res['applied']} categories ({res['skipped']} skipped). "
             f"Review the result: {res['output_name']}"
         ),
         **res,
+    }
+
+
+# --------------------------------------------------------------------------
+# Activity log
+# --------------------------------------------------------------------------
+
+@app.get("/api/activity")
+async def get_activity(category: Optional[str] = None, limit: int = 100):
+    """Recent activity entries, newest first, optionally filtered by category."""
+    return {
+        "entries": activity.recent(limit=min(limit, 500), category=category),
+        "categories": list(activity.CATEGORIES),
     }
 
 

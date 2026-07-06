@@ -186,6 +186,47 @@ def load_active() -> Pipeline | None:
         ) from e
 
 
+# --- Evaluation ---------------------------------------------------------------
+
+def evaluate(rows: Sequence[dict[str, Any]]) -> dict[str, Any]:
+    """Test the active model against already-categorised rows (the reviewed
+    truth). Rows need description, signed_amount and a category. Returns overall
+    accuracy plus a per-category breakdown — the 'is the model good enough yet?'
+    check before promoting data / after training. Does not mutate rows."""
+    labelled = [r for r in rows if r.get("category") not in (None, "")]
+    if not labelled:
+        raise ValueError("No categorised rows to evaluate against.")
+    pipeline = load_active()
+    if pipeline is None:
+        raise ModelUnavailable("No trained model yet. Train one first.")
+
+    X = rows_to_frame(labelled)
+    preds = pipeline.predict(X)
+
+    per_cat: dict[int, dict[str, Any]] = {}
+    correct = 0
+    for r, pred in zip(labelled, preds):
+        truth = int(float(r["category"]))
+        agg = per_cat.setdefault(truth, {
+            "category": truth, "label": category_label(truth), "n": 0, "correct": 0,
+        })
+        agg["n"] += 1
+        if int(pred) == truth:
+            agg["correct"] += 1
+            correct += 1
+
+    breakdown = sorted(per_cat.values(), key=lambda a: a["n"], reverse=True)
+    for a in breakdown:
+        a["accuracy"] = round(a["correct"] / a["n"], 4)
+    return {
+        "model_version": active_version(),
+        "n_rows": len(labelled),
+        "correct": correct,
+        "accuracy": round(correct / len(labelled), 4),
+        "per_category": breakdown,
+    }
+
+
 # --- Prediction -------------------------------------------------------------
 
 def predict_rows(rows: Sequence[dict[str, Any]]) -> None:

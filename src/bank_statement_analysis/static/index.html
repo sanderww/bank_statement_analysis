@@ -117,13 +117,19 @@
                 0 1px 2px rgb(15 23 42 / 0.04),
                 0 12px 24px -16px rgb(15 23 42 / 0.12);
         }
+
+        @keyframes toast-in {
+            from { opacity: 0; transform: translateX(16px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        .toast { animation: toast-in 0.18s ease-out; }
     </style>
 </head>
 
 <body class="text-slate-900 min-h-screen p-4 sm:p-6 md:p-8">
 
     <div class="max-w-6xl mx-auto">
-        <header class="mb-8 flex items-start justify-between gap-4">
+        <header class="mb-6 flex items-start justify-between gap-4">
             <div class="flex items-center gap-4">
                 <div class="hidden sm:flex w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 text-white items-center justify-center shadow-lg shadow-indigo-200 shrink-0"
                     aria-hidden="true">
@@ -135,18 +141,41 @@
                 </div>
                 <div>
                     <h1 class="text-3xl font-bold tracking-tight text-slate-900">Bank Statement Analysis</h1>
-                    <p class="text-slate-500 mt-0.5">Extract, categorise, review and analyse your statements.
-                        The local model improves as you review.</p>
                     <p class="text-xs text-slate-400 mt-1 font-medium tracking-wide">PERSONAL LEDGER · LOCAL ONLY</p>
                 </div>
             </div>
-            <button onclick="openSetup()"
-                class="btn btn-secondary mt-1 shrink-0 flex items-center gap-2 text-sm">
-                ⚙ Setup
-            </button>
+            <div class="flex items-center gap-2 mt-1 shrink-0">
+                <button onclick="openActivity()" class="btn btn-secondary flex items-center gap-2 text-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+                    </svg>
+                    Activity
+                </button>
+                <button onclick="openSetup()" class="btn btn-secondary flex items-center gap-2 text-sm">
+                    ⚙ Setup
+                </button>
+            </div>
         </header>
 
-        <main class="space-y-10">
+        <!-- View switcher: the two journeys -->
+        <div class="mb-8 inline-flex rounded-xl border border-slate-200 bg-white p-1 shadow-sm" role="tablist">
+            <button id="viewtab-analyse" onclick="switchView('analyse')"
+                class="viewtab px-5 py-2 rounded-lg text-sm font-semibold transition-colors">
+                📊 Analyse statements
+            </button>
+            <button id="viewtab-train" onclick="switchView('train')"
+                class="viewtab px-5 py-2 rounded-lg text-sm font-semibold transition-colors">
+                🧠 Improve the model
+            </button>
+        </div>
+
+        <!-- ================= ANALYSE VIEW ================= -->
+        <main id="view-analyse" class="space-y-10">
+            <p class="text-sm text-slate-500 -mt-2 max-w-3xl">Turn statements into insight: extract, categorise,
+                review and fix, then explore where the money goes. Model training lives in its own flow
+                (<a class="text-indigo-600 font-medium cursor-pointer" onclick="switchView('train')">Improve the model</a>).</p>
+
             <!-- SECTION 1: PDF PROCESSING -->
             <section>
                 <div class="flex items-center gap-3 mb-4">
@@ -286,14 +315,14 @@
             <section>
                 <div class="flex items-center gap-3 mb-4">
                     <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 text-white flex items-center justify-center font-bold shadow-md shadow-indigo-200">3</div>
-                    <h2 class="text-xl font-semibold text-slate-800">Review &amp; improve</h2>
-                    <span class="text-xs font-medium text-slate-400 uppercase tracking-wider mt-1">fix · accept · train</span>
+                    <h2 class="text-xl font-semibold text-slate-800">Review &amp; fix</h2>
+                    <span class="text-xs font-medium text-slate-400 uppercase tracking-wider mt-1">correct categories</span>
                 </div>
 
                 <div class="panel p-6">
                     <p class="text-xs text-slate-500 mb-4 max-w-3xl">Categorisation is never perfect. Load a categorised
-                        CSV, fix categories inline (low-confidence rows are flagged), save — and when the statement
-                        looks right, add it to the training data and/or export the final CSV.</p>
+                        CSV, fix categories and controllable flags inline (low-confidence rows are flagged), then save.
+                        A reviewed file is ready for insights, export — and for the model-improvement flow.</p>
 
                     <div class="flex flex-wrap items-end gap-3 mb-5">
                         <div>
@@ -331,8 +360,6 @@
                             <div class="flex-grow"></div>
                             <button onclick="saveReview()"
                                 class="btn btn-primary text-sm">Save changes</button>
-                            <button onclick="promoteReview()"
-                                class="btn btn-outline text-sm">Add to training data</button>
                             <button onclick="exportFinal()"
                                 class="btn btn-secondary text-sm">Export final CSV</button>
                         </div>
@@ -402,12 +429,108 @@
                     </div>
                 </div>
             </section>
+        </main>
 
-            <!-- Output/Status Section -->
-            <section id="status-section" class="hidden panel p-6">
-                <h3 class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4">Status</h3>
-                <div id="status-content"
-                    class="text-sm font-mono bg-slate-50 text-slate-600 p-4 rounded-lg border border-slate-200 whitespace-pre-wrap"></div>
+        <!-- ================= TRAIN / IMPROVE VIEW ================= -->
+        <main id="view-train" class="space-y-10 hidden">
+            <p class="text-sm text-slate-500 -mt-2 max-w-3xl">Make the local model good enough to categorise on its
+                own: test it against statements you have reviewed, promote the good ones to training data, retrain,
+                and measure again. Reviewing itself happens in
+                <a class="text-indigo-600 font-medium cursor-pointer" onclick="switchView('analyse')">Analyse statements</a> (step 3).</p>
+
+            <!-- T1: EVALUATE -->
+            <section>
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center font-bold shadow-md shadow-emerald-200">1</div>
+                    <h2 class="text-xl font-semibold text-slate-800">Test the current model</h2>
+                    <span class="text-xs font-medium text-slate-400 uppercase tracking-wider mt-1">good enough yet?</span>
+                </div>
+
+                <div class="panel p-6">
+                    <p class="text-xs text-slate-500 mb-4 max-w-3xl">Run the active model against a <b>reviewed</b>
+                        categorised file and compare with your corrected categories. This tells you whether the model
+                        is improving and which categories it still gets wrong.</p>
+                    <div class="flex flex-wrap items-end gap-3 mb-5">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-500 mb-1">Reviewed file (the truth)</label>
+                            <select id="eval-file" class="input-field text-sm min-w-[280px]"></select>
+                        </div>
+                        <button onclick="evaluateModel()" class="btn btn-primary text-sm">Evaluate model</button>
+                        <span id="eval-model-info" class="text-xs text-slate-400 pb-2.5"></span>
+                    </div>
+
+                    <div id="eval-results" class="hidden">
+                        <div class="flex items-center gap-6 mb-4">
+                            <div>
+                                <p class="text-xs font-medium text-slate-500">Overall accuracy</p>
+                                <p id="eval-accuracy" class="text-3xl font-bold tabular-nums"></p>
+                            </div>
+                            <p id="eval-detail" class="text-xs text-slate-500"></p>
+                        </div>
+                        <div class="overflow-x-auto border border-slate-200 rounded-xl max-w-2xl">
+                            <table class="min-w-full text-sm">
+                                <thead class="bg-slate-50 border-b border-slate-200">
+                                    <tr class="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                                        <th class="py-2 px-3 font-semibold">Category</th>
+                                        <th class="py-2 px-3 font-semibold text-right">Rows</th>
+                                        <th class="py-2 px-3 font-semibold text-right">Correct</th>
+                                        <th class="py-2 px-3 font-semibold w-1/3">Accuracy</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="eval-tbody" class="divide-y divide-slate-200 bg-white"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- T2: TRAINING DATA -->
+            <section>
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center font-bold shadow-md shadow-emerald-200">2</div>
+                    <h2 class="text-xl font-semibold text-slate-800">Grow the training data</h2>
+                    <span class="text-xs font-medium text-slate-400 uppercase tracking-wider mt-1">curated, deliberate</span>
+                </div>
+
+                <div class="panel p-6">
+                    <p class="text-xs text-slate-500 mb-4 max-w-3xl">Only promote a statement once its categories are
+                        reviewed and correct — the model learns exactly (and only) what lives here. Duplicates are
+                        skipped automatically.</p>
+                    <div class="flex flex-wrap items-end gap-3 mb-5">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-500 mb-1">Reviewed file to promote</label>
+                            <select id="promote-file" class="input-field text-sm min-w-[280px]"></select>
+                        </div>
+                        <button onclick="promoteTraining()" class="btn btn-primary text-sm">Add to training data</button>
+                    </div>
+                    <div class="border-t border-slate-200 pt-4">
+                        <h4 class="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Current training data</h4>
+                        <div id="training-data-stats" class="text-sm text-slate-500"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- T3: TRAIN -->
+            <section>
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center font-bold shadow-md shadow-emerald-200">3</div>
+                    <h2 class="text-xl font-semibold text-slate-800">Train &amp; manage versions</h2>
+                    <span class="text-xs font-medium text-slate-400 uppercase tracking-wider mt-1">then test again</span>
+                </div>
+
+                <div class="panel p-6">
+                    <div class="flex justify-between items-center mb-2">
+                        <p class="text-xs text-slate-500 max-w-2xl">Each training run creates a new version (trained
+                            offline from the curated data above) and makes it active. After training, go back to
+                            step 1 and evaluate it.</p>
+                        <button onclick="trainModel()" class="btn btn-primary text-sm shrink-0">Train new version</button>
+                    </div>
+                    <div class="flex justify-between items-center mt-4 mb-2">
+                        <h4 class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Model versions</h4>
+                        <span id="models-active" class="text-xs text-slate-400 font-mono"></span>
+                    </div>
+                    <div id="models-list" class="space-y-2"></div>
+                </div>
             </section>
         </main>
 
@@ -415,6 +538,27 @@
             <span>Runs locally · data never leaves this machine</span>
             <span>bank-statement-analysis</span>
         </footer>
+    </div>
+
+    <!-- TOASTS -->
+    <div id="toasts" class="fixed top-4 right-4 z-[70] space-y-2 w-[380px] max-w-[90vw]"></div>
+
+    <!-- ACTIVITY DRAWER -->
+    <div id="activity-overlay" class="fixed inset-0 z-50 hidden">
+        <div class="absolute inset-0 bg-slate-900/40" onclick="closeActivity()"></div>
+        <div class="absolute right-0 top-0 h-full w-full max-w-xl bg-white border-l border-slate-200 shadow-2xl flex flex-col">
+            <div class="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+                <h2 class="text-xl font-semibold text-slate-800">Activity</h2>
+                <button onclick="closeActivity()" aria-label="Close activity"
+                    class="text-slate-400 hover:text-slate-600 text-xl leading-none px-2 py-1 rounded-lg hover:bg-slate-100 transition-colors">✕</button>
+            </div>
+            <div class="px-6 py-3 border-b border-slate-200 flex flex-wrap gap-1.5" id="activity-filters"></div>
+            <div class="flex-1 overflow-y-auto px-6 py-4">
+                <div id="activity-list" class="space-y-2">
+                    <p class="text-slate-400 text-sm italic">Nothing yet.</p>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- SETUP DRAWER -->
@@ -432,11 +576,7 @@
                     class="setup-tab whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-colors">General</button>
                 <button data-tab="prompts" onclick="switchSetupTab('prompts')"
                     class="setup-tab whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-colors">Prompts</button>
-                <button data-tab="models" onclick="switchSetupTab('models')"
-                    class="setup-tab whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-colors">Models &amp; Training</button>
             </div>
-
-            <div id="setup-status" class="hidden mx-6 mt-3 text-xs px-3 py-2 rounded-lg border"></div>
 
             <div class="flex-1 overflow-y-auto px-6 py-5">
                 <!-- General -->
@@ -482,28 +622,6 @@
                             class="btn btn-primary mt-2 text-sm">Save as new version</button>
                     </details>
                 </div>
-
-                <!-- Models & Training -->
-                <div id="setup-pane-models" class="setup-pane hidden">
-                    <div class="flex justify-between items-center mb-2">
-                        <h3 class="font-semibold text-slate-800">Local models</h3>
-                        <span id="models-active" class="text-xs text-slate-400 font-mono"></span>
-                    </div>
-                    <p class="text-xs text-slate-500 mb-4">Versioned local models, trained from the curated training data
-                        below. Training happens offline on this machine.</p>
-                    <div id="models-list" class="space-y-2 mb-6"></div>
-
-                    <div class="border-t border-slate-200 pt-4">
-                        <div class="flex justify-between items-center mb-1">
-                            <h4 class="text-sm font-semibold text-slate-800">Training data</h4>
-                            <button onclick="trainModel()"
-                                class="btn btn-primary text-sm py-1.5 px-3">Train new version</button>
-                        </div>
-                        <p class="text-xs text-slate-500 mb-2">Grown deliberately from reviewed statements
-                            (step 3 → “Add to training data”).</p>
-                        <div id="training-data-stats" class="text-sm text-slate-500"></div>
-                    </div>
-                </div>
             </div>
         </div>
     </div>
@@ -512,7 +630,7 @@
         // ------------------------------------------------------------------
         // Shared state
         // ------------------------------------------------------------------
-        let CATEGORIES = [];          // [{code, label}]
+        let CATEGORIES = [];          // [{code, label, default_controllable}]
         let PROMPTS = [];             // cached prompt versions for editing
         let reviewRows = [];
         let reviewFilename = null;
@@ -521,6 +639,7 @@
         const REVIEW_PAGE_SIZE = 100;
         let chartCosts = null;
         let chartMonths = null;
+        let activityFilter = null;    // null = all
 
         const CHART_COLORS = ['#4f46e5', '#8b5cf6', '#0ea5e9', '#10b981', '#f59e0b',
             '#ef4444', '#ec4899', '#14b8a6', '#f97316', '#64748b'];
@@ -540,12 +659,97 @@
             return data;
         }
 
-        function showStatus(message, isError = false) {
-            const section = document.getElementById('status-section');
-            const content = document.getElementById('status-content');
-            section.classList.remove('hidden');
-            content.textContent = message;
-            content.className = `text-sm font-mono p-4 rounded-lg border whitespace-pre-wrap ${isError ? 'bg-red-50 text-red-700 border-red-200' : 'bg-slate-50 text-slate-600 border-slate-200'}`;
+        // ------------------------------------------------------------------
+        // Views: Analyse vs Improve-the-model
+        // ------------------------------------------------------------------
+        function switchView(view) {
+            document.getElementById('view-analyse').classList.toggle('hidden', view !== 'analyse');
+            document.getElementById('view-train').classList.toggle('hidden', view !== 'train');
+            for (const v of ['analyse', 'train']) {
+                const btn = document.getElementById(`viewtab-${v}`);
+                btn.className = 'viewtab px-5 py-2 rounded-lg text-sm font-semibold transition-colors ' + (v === view
+                    ? 'bg-indigo-600 text-white shadow-sm'
+                    : 'text-slate-500 hover:text-slate-800');
+            }
+            try { localStorage.setItem('bsa-view', view); } catch (e) { }
+            if (view === 'train') loadTrainView();
+        }
+
+        // ------------------------------------------------------------------
+        // Toasts (immediate feedback) — every action outcome pops up here and
+        // is also persisted server-side in the Activity log.
+        // ------------------------------------------------------------------
+        function toast(message, isError = false) {
+            const el = document.createElement('div');
+            el.className = `toast panel px-4 py-3 text-sm flex items-start gap-3 ${isError
+                ? 'border-red-200 bg-red-50 text-red-700'
+                : 'bg-white text-slate-700'}`;
+            el.innerHTML = `
+                <span class="mt-0.5 shrink-0">${isError ? '⚠️' : '✅'}</span>
+                <span class="whitespace-pre-wrap flex-grow">${esc(message)}</span>
+                <button class="text-slate-400 hover:text-slate-600 shrink-0" onclick="this.parentElement.remove()">✕</button>`;
+            document.getElementById('toasts').appendChild(el);
+            setTimeout(() => { el.style.transition = 'opacity 0.4s'; el.style.opacity = '0'; setTimeout(() => el.remove(), 400); },
+                isError ? 12000 : 6000);
+            // keep the activity panel live if it's open
+            if (!document.getElementById('activity-overlay').classList.contains('hidden')) loadActivity();
+        }
+        const showStatus = toast;        // legacy alias
+        const showSetupStatus = toast;   // legacy alias
+
+        // ------------------------------------------------------------------
+        // Activity drawer (persistent, categorised log)
+        // ------------------------------------------------------------------
+        const ACTIVITY_BADGE = {
+            extract: 'bg-sky-100 text-sky-700', categorise: 'bg-indigo-100 text-indigo-700',
+            handoff: 'bg-violet-100 text-violet-700', review: 'bg-amber-100 text-amber-700',
+            export: 'bg-teal-100 text-teal-700', training: 'bg-emerald-100 text-emerald-700',
+            prompts: 'bg-pink-100 text-pink-700', settings: 'bg-slate-100 text-slate-600',
+            other: 'bg-slate-100 text-slate-600',
+        };
+
+        function openActivity() {
+            document.getElementById('activity-overlay').classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+            loadActivity();
+        }
+
+        function closeActivity() {
+            document.getElementById('activity-overlay').classList.add('hidden');
+            document.body.style.overflow = '';
+        }
+
+        function setActivityFilter(cat) {
+            activityFilter = cat;
+            loadActivity();
+        }
+
+        async function loadActivity() {
+            try {
+                const params = activityFilter ? `?category=${encodeURIComponent(activityFilter)}` : '';
+                const data = await fetchJSON(`/api/activity${params}`);
+
+                const chips = [['', 'All']].concat(data.categories.map(c => [c, c]));
+                document.getElementById('activity-filters').innerHTML = chips.map(([val, label]) => {
+                    const active = (activityFilter || '') === val;
+                    return `<button onclick="setActivityFilter(${val ? `'${val}'` : 'null'})"
+                        class="px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${active
+                            ? 'bg-indigo-600 text-white'
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}">${esc(label)}</button>`;
+                }).join('');
+
+                document.getElementById('activity-list').innerHTML = data.entries.length
+                    ? data.entries.map(e => `
+                        <div class="flex items-start gap-3 py-2 px-3 rounded-lg border ${e.level === 'error' ? 'border-red-200 bg-red-50' : 'border-slate-200 bg-white'}">
+                            <span class="text-[10px] uppercase tracking-wide font-semibold px-2 py-0.5 rounded-full shrink-0 mt-0.5 ${ACTIVITY_BADGE[e.category] || ACTIVITY_BADGE.other}">${esc(e.category)}</span>
+                            <div class="flex-grow min-w-0">
+                                <p class="text-sm text-slate-700 break-words">${esc(e.message)}</p>
+                                <p class="text-[11px] text-slate-400 tabular-nums mt-0.5">${esc(e.ts).replace('T', ' ')}</p>
+                            </div>
+                        </div>`).join('')
+                    : '<p class="text-slate-400 text-sm italic">Nothing logged yet' +
+                      (activityFilter ? ` for “${esc(activityFilter)}”` : '') + '.</p>';
+            } catch (err) { /* panel stays as-is */ }
         }
 
         // ------------------------------------------------------------------
@@ -595,40 +799,40 @@
 
         async function runExtraction() {
             const files = getSelected('files');
-            if (files.length === 0) { alert('Please select at least one PDF file.'); return; }
-            showStatus('Extracting... please wait.');
+            if (files.length === 0) { toast('Select at least one PDF file first.', true); return; }
+            toast('Extracting… this can take a moment.');
             try {
                 const data = await fetchJSON('/api/extract', {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ files })
                 });
-                showStatus(`Success!\n${data.message}\nSaved to: ${data.output_file}`);
+                toast(`${data.message}\n→ ${data.output_file.split('/').pop()}`);
                 loadCsvFiles();
-            } catch (err) { showStatus(`Error: ${err.message}`, true); }
+            } catch (err) { toast(`Extraction failed: ${err.message}`, true); }
         }
 
         async function runCategorization(mode) {
             const files = getSelected('files');
-            if (files.length === 0) { alert('Please select at least one PDF file.'); return; }
+            if (files.length === 0) { toast('Select at least one PDF file first.', true); return; }
             await categorize(files, mode, 'PDFs');
         }
 
         async function runCsvCategorization(mode) {
             const files = getSelected('csv-files');
-            if (files.length === 0) { alert('Please select at least one CSV file.'); return; }
+            if (files.length === 0) { toast('Select at least one CSV file first.', true); return; }
             await categorize(files, mode, 'CSVs');
         }
 
         async function categorize(files, mode, kind) {
-            showStatus(`Categorizing ${kind} (${mode})... please wait.`);
+            toast(`Categorising ${kind} (${mode})…`);
             try {
                 const data = await fetchJSON('/api/categorize', {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ files, mode })
                 });
-                showStatus(`Success!\n${data.message}\nSaved to: ${data.output_file}\n\nNext: review it in step 3.`);
+                toast(`${data.message}\n→ ${data.output_file.split('/').pop()}\nNext: review it in step 3.`);
                 loadReviewFiles();
-            } catch (err) { showStatus(`Error: ${err.message}`, true); }
+            } catch (err) { toast(`Categorisation failed: ${err.message}`, true); }
         }
 
         // ------------------------------------------------------------------
@@ -646,30 +850,28 @@
 
         async function handoffExport() {
             const files = getSelected('csv-files');
-            if (files.length !== 1) { alert('Select exactly one raw CSV for the hand-off.'); return; }
-            showStatus('Exporting for Claude Code...');
+            if (files.length !== 1) { toast('Select exactly one raw CSV for the hand-off.', true); return; }
             try {
                 const data = await fetchJSON('/api/handoff/export', {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ file: files[0] })
                 });
-                showStatus(`Success!\n${data.message}\n\nRequest: ${data.request_path}\nInstructions: ${data.instructions_path}`);
+                toast(data.message);
                 loadHandoff();
-            } catch (err) { showStatus(`Error: ${err.message}`, true); }
+            } catch (err) { toast(`Hand-off export failed: ${err.message}`, true); }
         }
 
         async function handoffImport() {
             const results = document.getElementById('handoff-results').value;
-            if (!results) { alert('No results file selected — save one in output/handoff first.'); return; }
-            showStatus('Importing results...');
+            if (!results) { toast('No results file selected — save one in output/handoff first.', true); return; }
             try {
                 const data = await fetchJSON('/api/handoff/import', {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ results })
                 });
-                showStatus(`Success!\n${data.message}`);
+                toast(data.message);
                 loadReviewFiles();
-            } catch (err) { showStatus(`Error: ${err.message}`, true); }
+            } catch (err) { toast(`Import failed: ${err.message}`, true); }
         }
 
         // ------------------------------------------------------------------
@@ -690,17 +892,19 @@
         async function loadReviewFiles() {
             try {
                 const data = await fetchJSON('/api/categorised-files');
-                const sel = document.getElementById('review-file');
-                sel.innerHTML = data.files.length
+                const optionsHTML = data.files.length
                     ? data.files.map(f => `<option value="${esc(f)}">${esc(f)}</option>`).join('')
                     : '<option value="">No categorised files yet</option>';
+                for (const id of ['review-file', 'eval-file', 'promote-file']) {
+                    document.getElementById(id).innerHTML = optionsHTML;
+                }
                 renderInsightsFileList(data.files);
             } catch (err) { /* silent */ }
         }
 
         async function loadReview() {
             const filename = document.getElementById('review-file').value;
-            if (!filename) { alert('No categorised file selected.'); return; }
+            if (!filename) { toast('No categorised file selected.', true); return; }
             try {
                 const data = await fetchJSON(`/api/review/${encodeURIComponent(filename)}`);
                 reviewRows = data.rows;
@@ -709,7 +913,7 @@
                 reviewPage = 0;
                 document.getElementById('review-controls').classList.remove('hidden');
                 renderReviewTable();
-            } catch (err) { showStatus(`Error: ${err.message}`, true); }
+            } catch (err) { toast(`Couldn't load ${filename}: ${err.message}`, true); }
         }
 
         function categorySelectHTML(row) {
@@ -820,26 +1024,16 @@
                     method: 'PUT', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ rows: reviewRows })
                 });
-                showStatus(`Success!\n${data.message}`);
-            } catch (err) { showStatus(`Error: ${err.message}`, true); }
-        }
-
-        async function promoteReview() {
-            if (!reviewFilename) return;
-            if (!confirm('Save your edits first if you haven\'t. Add this file\'s categorised rows to the training data?')) return;
-            try {
-                const data = await fetchJSON(`/api/review/${encodeURIComponent(reviewFilename)}/promote`, { method: 'POST' });
-                showStatus(`Success!\n${data.message}`);
-                loadSetup();
-            } catch (err) { showStatus(`Error: ${err.message}`, true); }
+                toast(data.message);
+            } catch (err) { toast(`Save failed: ${err.message}`, true); }
         }
 
         async function exportFinal() {
             if (!reviewFilename) return;
             try {
                 const data = await fetchJSON(`/api/review/${encodeURIComponent(reviewFilename)}/export`, { method: 'POST' });
-                showStatus(`Success!\n${data.message}\nSaved to: ${data.path}`);
-            } catch (err) { showStatus(`Error: ${err.message}`, true); }
+                toast(data.message);
+            } catch (err) { toast(`Export failed: ${err.message}`, true); }
         }
 
         // ------------------------------------------------------------------
@@ -857,7 +1051,7 @@
 
         async function loadInsights() {
             const files = getSelected('insights-files');
-            if (files.length === 0) { alert('Select at least one categorised file.'); return; }
+            if (files.length === 0) { toast('Select at least one categorised file.', true); return; }
             const params = new URLSearchParams();
             files.forEach(f => params.append('files', f));
             try {
@@ -916,11 +1110,106 @@
                         }
                     }
                 });
-            } catch (err) { showStatus(`Error: ${err.message}`, true); }
+            } catch (err) { toast(`Insights failed: ${err.message}`, true); }
         }
 
         // ------------------------------------------------------------------
-        // Setup drawer
+        // Improve-the-model view
+        // ------------------------------------------------------------------
+        async function loadTrainView() {
+            try {
+                const [models, training] = await Promise.all([
+                    fetchJSON('/api/models'), fetchJSON('/api/training-data'),
+                ]);
+
+                document.getElementById('eval-model-info').textContent =
+                    models.active ? `active model: v${models.active}` : 'no trained model yet — train one below';
+                document.getElementById('models-active').textContent =
+                    models.active ? `active: v${models.active}` : 'no model yet';
+
+                document.getElementById('models-list').innerHTML = models.models.map(m => {
+                    const metrics = m.metrics ? Object.entries(m.metrics)
+                        .filter(([k]) => k !== 'note')
+                        .map(([k, v]) => `${k.replace(/_/g, ' ')}: ${v}`).join(' · ') : '';
+                    return `
+                    <div class="border border-slate-200 rounded-xl py-2 px-3 flex items-center justify-between text-sm bg-white">
+                        <div>
+                            <span class="font-mono text-xs font-medium text-slate-700">v${m.version}</span>
+                            ${m.active ? '<span class="ml-2 text-[10px] uppercase tracking-wide font-semibold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">active</span>' : ''}
+                            ${!m.artefact_exists ? '<span class="ml-2 text-[10px] uppercase tracking-wide font-semibold px-2 py-0.5 rounded-full bg-red-100 text-red-700">file missing</span>' : ''}
+                            <p class="text-[11px] text-slate-400 mt-0.5 tabular-nums">${m.training_size ?? '?'} rows · ${esc(metrics)} · ${esc(m.created_at ?? '')}</p>
+                        </div>
+                        ${!m.active && m.artefact_exists ? `<button onclick="activateModel(${m.version})" class="text-xs text-indigo-600 hover:text-indigo-800 font-medium">Activate</button>` : ''}
+                    </div>`;
+                }).join('') || '<p class="text-slate-400 text-sm italic">No models trained yet.</p>';
+
+                document.getElementById('training-data-stats').innerHTML = training.files.length
+                    ? `<p class="mb-1 tabular-nums">${training.total_rows} rows · ${training.total_categories} categories</p>` +
+                      training.files.map(f => `<p class="text-xs text-slate-400">· ${esc(f.name)} — ${f.rows} rows</p>`).join('')
+                    : '<p class="text-slate-400 text-sm italic">Empty — review a statement (Analyse → step 3), then promote it above.</p>';
+            } catch (err) { toast(`Couldn't load model data: ${err.message}`, true); }
+        }
+
+        async function evaluateModel() {
+            const file = document.getElementById('eval-file').value;
+            if (!file) { toast('No reviewed file selected.', true); return; }
+            try {
+                const data = await fetchJSON('/api/models/evaluate', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ file })
+                });
+                toast(data.message);
+                document.getElementById('eval-results').classList.remove('hidden');
+                const pct = Math.round(data.accuracy * 100);
+                const accEl = document.getElementById('eval-accuracy');
+                accEl.textContent = `${pct}%`;
+                accEl.className = 'text-3xl font-bold tabular-nums ' +
+                    (pct >= 90 ? 'text-green-600' : pct >= 70 ? 'text-amber-600' : 'text-red-600');
+                document.getElementById('eval-detail').textContent =
+                    `model v${data.model_version} · ${data.correct}/${data.n_rows} reviewed rows of ${file} predicted correctly`;
+                document.getElementById('eval-tbody').innerHTML = data.per_category.map(c => {
+                    const p = Math.round(c.accuracy * 100);
+                    const barCls = p >= 90 ? 'bg-green-500' : p >= 70 ? 'bg-amber-500' : 'bg-red-500';
+                    return `
+                    <tr>
+                        <td class="py-2 px-3 text-slate-700">${esc(c.label)}</td>
+                        <td class="py-2 px-3 text-right tabular-nums text-slate-500">${c.n}</td>
+                        <td class="py-2 px-3 text-right tabular-nums text-slate-500">${c.correct}</td>
+                        <td class="py-2 px-3">
+                            <div class="flex items-center gap-2">
+                                <div class="flex-grow bg-slate-100 rounded-full h-2 overflow-hidden">
+                                    <div class="${barCls} h-2 rounded-full" style="width:${p}%"></div>
+                                </div>
+                                <span class="text-xs tabular-nums text-slate-500 w-9 text-right">${p}%</span>
+                            </div>
+                        </td>
+                    </tr>`;
+                }).join('');
+            } catch (err) { toast(`Evaluation failed: ${err.message}`, true); }
+        }
+
+        async function promoteTraining() {
+            const file = document.getElementById('promote-file').value;
+            if (!file) { toast('No reviewed file selected.', true); return; }
+            if (!confirm(`Add the categorised rows of ${file} to the training data? Only do this once you've reviewed it.`)) return;
+            try {
+                const data = await fetchJSON(`/api/review/${encodeURIComponent(file)}/promote`, { method: 'POST' });
+                toast(data.message);
+                loadTrainView();
+            } catch (err) { toast(`Promote failed: ${err.message}`, true); }
+        }
+
+        async function trainModel() {
+            toast('Training model…');
+            try {
+                const data = await fetchJSON('/api/models/train', { method: 'POST' });
+                toast(`${data.message} — metrics: ${JSON.stringify(data.metrics)}\nNow evaluate it (step 1).`);
+                loadTrainView();
+            } catch (err) { toast(`Training failed: ${err.message}`, true); }
+        }
+
+        // ------------------------------------------------------------------
+        // Setup drawer (general + prompts)
         // ------------------------------------------------------------------
         function openSetup(tab) {
             document.getElementById('setup-overlay').classList.remove('hidden');
@@ -935,17 +1224,8 @@
         }
 
         document.addEventListener('keydown', e => {
-            if (e.key === 'Escape') closeSetup();
+            if (e.key === 'Escape') { closeSetup(); closeActivity(); }
         });
-
-        function showSetupStatus(message, isError = false) {
-            const el = document.getElementById('setup-status');
-            el.classList.remove('hidden');
-            el.textContent = message;
-            el.className = `mx-6 mt-3 text-xs px-3 py-2 rounded-lg border ${isError
-                ? 'bg-red-50 text-red-700 border-red-200'
-                : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`;
-        }
 
         function switchSetupTab(tab) {
             document.querySelectorAll('.setup-pane').forEach(p => p.classList.add('hidden'));
@@ -1000,30 +1280,29 @@
 
         async function savePromptEdit(version, asNew) {
             const text = document.getElementById(`prompt-edit-${version}`).value;
-            if (!text.trim()) { alert('Prompt text is empty.'); return; }
+            if (!text.trim()) { toast('Prompt text is empty.', true); return; }
             try {
                 if (asNew) {
                     const data = await fetchJSON('/api/prompts', {
                         method: 'POST', headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ text })
                     });
-                    showSetupStatus(data.message);
+                    toast(data.message);
                 } else {
                     const data = await fetchJSON(`/api/prompts/${encodeURIComponent(version)}`, {
                         method: 'PUT', headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ text })
                     });
-                    showSetupStatus(data.message);
+                    toast(data.message);
                 }
                 loadSetup();
-            } catch (err) { showSetupStatus(`Error: ${err.message}`, true); }
+            } catch (err) { toast(`Prompt save failed: ${err.message}`, true); }
         }
 
         async function loadSetup() {
             try {
-                const [prompts, models, training, settings] = await Promise.all([
-                    fetchJSON('/api/prompts'), fetchJSON('/api/models'),
-                    fetchJSON('/api/training-data'), fetchJSON('/api/settings'),
+                const [prompts, settings] = await Promise.all([
+                    fetchJSON('/api/prompts'), fetchJSON('/api/settings'),
                 ]);
 
                 PROMPTS = prompts.prompts;
@@ -1032,79 +1311,47 @@
                     PROMPTS.map(promptCardHTML).join('') ||
                     '<p class="text-slate-400 text-sm italic">No prompt files found.</p>';
 
-                document.getElementById('models-active').textContent =
-                    models.active ? `active: v${models.active}` : 'no model yet';
-                document.getElementById('models-list').innerHTML = models.models.map(m => {
-                    const metrics = m.metrics ? Object.entries(m.metrics)
-                        .filter(([k]) => k !== 'note')
-                        .map(([k, v]) => `${k.replace(/_/g, ' ')}: ${v}`).join(' · ') : '';
-                    return `
-                    <div class="border border-slate-200 rounded-xl py-2 px-3 flex items-center justify-between text-sm bg-white">
-                        <div>
-                            <span class="font-mono text-xs font-medium text-slate-700">v${m.version}</span>
-                            ${m.active ? '<span class="ml-2 text-[10px] uppercase tracking-wide font-semibold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">active</span>' : ''}
-                            ${!m.artefact_exists ? '<span class="ml-2 text-[10px] uppercase tracking-wide font-semibold px-2 py-0.5 rounded-full bg-red-100 text-red-700">file missing</span>' : ''}
-                            <p class="text-[11px] text-slate-400 mt-0.5 tabular-nums">${m.training_size ?? '?'} rows · ${esc(metrics)} · ${esc(m.created_at ?? '')}</p>
-                        </div>
-                        ${!m.active && m.artefact_exists ? `<button onclick="activateModel(${m.version})" class="text-xs text-indigo-600 hover:text-indigo-800 font-medium">Activate</button>` : ''}
-                    </div>`;
-                }).join('') || '<p class="text-slate-400 text-sm italic">No models trained yet.</p>';
-
-                document.getElementById('training-data-stats').innerHTML = training.files.length
-                    ? `<p class="mb-1 tabular-nums">${training.total_rows} rows · ${training.total_categories} categories</p>` +
-                      training.files.map(f => `<p class="text-xs text-slate-400">· ${esc(f.name)} — ${f.rows} rows</p>`).join('')
-                    : '<p class="text-slate-400 text-sm italic">Empty — review a statement and add it (step 3).</p>';
-
                 const thr = settings.confidence_threshold ?? 0.7;
                 document.getElementById('setting-threshold').value = thr;
                 document.getElementById('threshold-value').textContent = thr;
                 document.getElementById('setting-openai-model').value = settings.openai_model ?? '';
-            } catch (err) { showSetupStatus(`Error loading setup: ${err.message}`, true); }
+            } catch (err) { toast(`Couldn't load setup: ${err.message}`, true); }
         }
 
         async function activatePrompt(version) {
             try {
-                await fetchJSON('/api/prompts/activate', {
+                const data = await fetchJSON('/api/prompts/activate', {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ version })
                 });
-                showSetupStatus(`Prompt ${version} is now active.`);
+                toast(data.message);
                 loadSetup();
-            } catch (err) { showSetupStatus(`Error: ${err.message}`, true); }
+            } catch (err) { toast(`Activate failed: ${err.message}`, true); }
         }
 
         async function createPrompt() {
             const text = document.getElementById('prompt-new-text').value;
-            if (!text.trim()) { alert('Prompt text is empty.'); return; }
+            if (!text.trim()) { toast('Prompt text is empty.', true); return; }
             try {
                 const data = await fetchJSON('/api/prompts', {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ text })
                 });
                 document.getElementById('prompt-new-text').value = '';
-                showSetupStatus(data.message);
+                toast(data.message);
                 loadSetup();
-            } catch (err) { showSetupStatus(`Error: ${err.message}`, true); }
+            } catch (err) { toast(`Prompt save failed: ${err.message}`, true); }
         }
 
         async function activateModel(version) {
             try {
-                await fetchJSON('/api/models/activate', {
+                const data = await fetchJSON('/api/models/activate', {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ version })
                 });
-                showSetupStatus(`Model v${version} is now active.`);
-                loadSetup();
-            } catch (err) { showSetupStatus(`Error: ${err.message}`, true); }
-        }
-
-        async function trainModel() {
-            showSetupStatus('Training model... please wait.');
-            try {
-                const data = await fetchJSON('/api/models/train', { method: 'POST' });
-                showSetupStatus(`${data.message} — metrics: ${JSON.stringify(data.metrics)}`);
-                loadSetup();
-            } catch (err) { showSetupStatus(`Error: ${err.message}`, true); }
+                toast(data.message);
+                loadTrainView();
+            } catch (err) { toast(`Activate failed: ${err.message}`, true); }
         }
 
         async function saveSettings() {
@@ -1117,12 +1364,15 @@
                     })
                 });
                 reviewThreshold = data.confidence_threshold;
-                showSetupStatus('Settings saved.');
+                toast('Settings saved.');
                 if (reviewRows.length) renderReviewTable();
-            } catch (err) { showSetupStatus(`Error: ${err.message}`, true); }
+            } catch (err) { toast(`Settings save failed: ${err.message}`, true); }
         }
 
         // Initial load
+        let initialView = 'analyse';
+        try { initialView = localStorage.getItem('bsa-view') || 'analyse'; } catch (e) { }
+        switchView(initialView === 'train' ? 'train' : 'analyse');
         loadFiles();
         loadCsvFiles();
         loadHandoff();

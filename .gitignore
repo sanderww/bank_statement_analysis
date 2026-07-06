@@ -20,8 +20,9 @@ wheels/
 /bank_statements
 /models
 
-# Machine-local app state (active prompt/model version, thresholds)
+# Machine-local app state (active prompt/model version, thresholds, activity log)
 /settings.json
+/activity_log.jsonl
 
 # Misc
 .DS_Store
