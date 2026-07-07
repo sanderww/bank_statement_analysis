@@ -14,7 +14,7 @@ from bank_statement_analysis.categories import (
     default_controllable,
     label,
 )
-from bank_statement_analysis.categorize import CategorizedTransaction
+from bank_statement_analysis.categorize import CategoryResult
 
 
 def test_category_codes_cover_0_to_10():
@@ -52,21 +52,17 @@ def test_label_helper_handles_bad_input():
     assert label(99) == "Unknown"
 
 
-def test_categorized_transaction_accepts_full_range():
-    base = dict(date="01-01-2026", description="x", amount=1.0, balance=1.0)
+def test_category_result_accepts_full_range():
     for code in (0, 10):
-        tx = CategorizedTransaction(**base, category=code, category_label=label(code),
-                                    controllable=False)
-        assert int(tx.category) == code
+        res = CategoryResult(index=0, category=code, controllable=False)
+        assert int(res.category) == code
 
 
-def test_categorized_transaction_rejects_out_of_range():
-    base = dict(date="01-01-2026", description="x", amount=1.0, balance=1.0)
+def test_category_result_rejects_out_of_range():
     with pytest.raises(ValidationError):
-        CategorizedTransaction(**base, category=11, category_label="nope", controllable=False)
+        CategoryResult(index=0, category=11, controllable=False)
 
 
-def test_categorized_transaction_requires_controllable():
-    base = dict(date="01-01-2026", description="x", amount=1.0, balance=1.0)
+def test_category_result_requires_controllable():
     with pytest.raises(ValidationError):
-        CategorizedTransaction(**base, category=2, category_label=label(2))
+        CategoryResult(index=0, category=2)

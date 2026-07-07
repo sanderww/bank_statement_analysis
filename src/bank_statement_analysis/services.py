@@ -5,8 +5,8 @@ from typing import List, Optional, Dict, Any
 from . import config, model_store, prompt_store
 from .dedup import dedup_key
 from . import direction
-from .extract import extract_transactions_from_pdf
-from .categorize import Transaction, categorize_transactions
+from .extract import clean_description, extract_transactions_from_pdf
+from .categorize import categorize_rows
 
 logger = logging.getLogger(__name__)
 
@@ -23,12 +23,15 @@ def enrich_rows(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     cleaned = [
         {
             **r,
+            "description": clean_description(str(r["description"])),
             "amount": round(abs(float(r["amount"])), 2),
             "balance": round(float(r["balance"]), 2),
         }
         for r in rows
         if r.get("description") and abs(float(r.get("amount") or 0)) > 0
     ]
+    # cleaning can empty a description that was pure noise — drop those rows
+    cleaned = [r for r in cleaned if r["description"]]
     return direction.derive(cleaned)
 
 
@@ -133,23 +136,6 @@ def categorize_data(
     if mode.lower() != "openai":
         raise ValueError("categorize_mode must be 'openai' or 'local'")
 
-    tx_models = [
-        Transaction(
-            date=r["date"],
-            description=r["description"],
-            amount=float(r["amount"]),
-            balance=float(r["balance"]),
-        )
-        for r in rows
-    ]
     version = prompt_version or prompt_store.active_version()
-    categorized = categorize_transactions(tx_models, model=model, prompt_version=version)
-
-    # Merge category back
-    for i, c in enumerate(categorized):
-        rows[i]["category"] = int(c.category)
-        rows[i]["category_label"] = c.category_label
-        rows[i]["controllable"] = "yes" if c.controllable else "no"
-        rows[i]["source"] = "openai"
-
+    categorize_rows(rows, model=model, prompt_version=version)
     return rows

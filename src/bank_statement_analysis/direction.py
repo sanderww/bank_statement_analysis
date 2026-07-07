@@ -26,6 +26,9 @@ _IN_KEYWORDS = (
 
 def _direction_from_keywords(description: str) -> str:
     d = description.lower()
+    # 'credit card' is a payment (money out) despite containing 'credit'
+    if "credit card" in d:
+        return "out"
     return "in" if any(k in d for k in _IN_KEYWORDS) else "out"
 
 

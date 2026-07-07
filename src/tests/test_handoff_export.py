@@ -102,6 +102,17 @@ def test_handoff_export_missing_file_404(client):
     assert client.post("/api/handoff/export", json={"file": "missing.csv"}).status_code == 404
 
 
+def test_handoff_export_empty_csv_400(client):
+    config.ensure_dirs()
+    empty = config.extracted_raw_dir() / "empty.csv"
+    empty.write_text("date,description,amount,balance,direction,signed_amount,source_statement\n",
+                     encoding="utf-8")
+    res = client.post("/api/handoff/export", json={"file": "empty.csv"})
+    assert res.status_code == 400
+    # and no half-created hand-off files are left behind
+    assert not list(config.handoff_dir().glob("request_*"))
+
+
 # --- final export ---------------------------------------------------------------
 
 def test_export_final_decoupled(client):

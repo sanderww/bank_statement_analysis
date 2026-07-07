@@ -41,6 +41,8 @@ def export_for_categorisation(extracted_csv_name: str) -> dict:
         raise FileNotFoundError(f"Extracted CSV not found: {extracted_csv_name}")
 
     rows = load_csv_data([source_path])
+    if not rows:
+        raise ValueError(f"{extracted_csv_name} has no transactions to categorise.")
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
     request_path = config.handoff_dir() / f"request_{stamp}.csv"

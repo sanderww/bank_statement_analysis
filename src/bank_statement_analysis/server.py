@@ -351,6 +351,9 @@ async def save_review(filename: str, req: ReviewSave):
     """Persist review edits back to the categorised CSV. The category label is
     recomputed server-side; rows the user changed should carry source='user'."""
     path = _safe_categorised_path(filename)
+    if not req.rows:
+        # an empty save would silently wipe the file — refuse
+        raise HTTPException(status_code=400, detail="Refusing to save an empty row set")
     cleaned: List[Dict[str, Any]] = []
     for r in req.rows:
         cat = r.get("category")
@@ -446,6 +449,8 @@ async def handoff_export(req: HandoffExport):
         res = handoff.export_for_categorisation(req.file)
     except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     activity.log_event("handoff", f"Exported {res['rows']} transactions of {req.file} "
                                   f"for Claude Code (prompt {res['prompt_version']})")
     return {

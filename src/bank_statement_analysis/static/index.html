@@ -755,11 +755,13 @@
         // ------------------------------------------------------------------
         // Sections 1 & 2: file lists + extract/categorise
         // ------------------------------------------------------------------
-        function fileRow(name, file) {
+        function fileRow(name, file, idx) {
+            // index-based ids: filenames can contain characters invalid in ids
+            const id = `${name}-${idx}`;
             return `
                 <div class="flex items-center gap-3 py-1.5 px-2 rounded-lg hover:bg-slate-50 transition-colors">
-                    <input type="checkbox" name="${name}" value="${esc(file)}" id="${name}-${esc(file)}" class="accent-indigo-600 h-4 w-4 rounded">
-                    <label for="${name}-${esc(file)}" class="font-mono text-xs text-slate-600 cursor-pointer flex-grow select-none">${esc(file)}</label>
+                    <input type="checkbox" name="${name}" value="${esc(file)}" id="${id}" class="accent-indigo-600 h-4 w-4 rounded">
+                    <label for="${id}" class="font-mono text-xs text-slate-600 cursor-pointer flex-grow select-none">${esc(file)}</label>
                 </div>`;
         }
 
@@ -769,7 +771,7 @@
             try {
                 const data = await fetchJSON('/api/files');
                 listEl.innerHTML = data.files.length
-                    ? data.files.map(f => fileRow('files', f)).join('')
+                    ? data.files.map((f, i) => fileRow('files', f, i)).join('')
                     : '<p class="text-slate-400 text-sm">No PDF files found in bank_statements folder.</p>';
             } catch (err) {
                 listEl.innerHTML = `<p class="text-red-600 text-sm">Error loading files: ${esc(err.message)}</p>`;
@@ -782,7 +784,7 @@
             try {
                 const data = await fetchJSON('/api/csv-files');
                 listEl.innerHTML = data.files.length
-                    ? data.files.map(f => fileRow('csv-files', f)).join('')
+                    ? data.files.map((f, i) => fileRow('csv-files', f, i)).join('')
                     : '<p class="text-slate-400 text-sm">No CSV files found in output/extracted_raw.</p>';
             } catch (err) {
                 listEl.innerHTML = `<p class="text-red-600 text-sm">Error loading CSV files: ${esc(err.message)}</p>`;

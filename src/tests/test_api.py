@@ -129,6 +129,13 @@ def test_review_load_save_roundtrip(client):
     assert reloaded[3]["controllable"] == "yes"  # Dining default pre-filled
 
 
+def test_review_rejects_empty_row_set(client):
+    # an empty save must not wipe the file
+    path = _write_categorised()
+    assert client.put(f"/api/review/{path.name}", json={"rows": []}).status_code == 400
+    assert len(client.get(f"/api/review/{path.name}").json()["rows"]) == 4
+
+
 def test_review_rejects_bad_category_and_traversal(client):
     path = _write_categorised()
     rows = client.get(f"/api/review/{path.name}").json()["rows"]
