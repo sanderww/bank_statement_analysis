@@ -180,6 +180,28 @@ review → "Add to training data" → Setup → Train.
 
 ---
 
+## Quality audit (2026-07-07) — findings & fixes (552ace9)
+
+Full-pipeline review (extraction → enrichment → categorisation → model →
+insights → API → UI). Both extraction bugs were confirmed against the real
+2026-07-05 extract before fixing.
+
+| # | Severity | Finding | Fix |
+|---|----------|---------|-----|
+| 1 | **High** | Year inference was per page with fallback to *today's* year — pages without a "Statement Period" header split one statement across 2025 AND 2026 (82 of 107 rows mis-dated in the real extract; monthly charts broken). Dec→Jan statements would also mis-year December rows. | Document-level `YearContext` parsed from the statement period; each transaction resolves into the year that fits the period (±7d slack). Fallbacks: any header year → today. |
+| 2 | **High (privacy)** | Page furniture glued onto descriptions — including the **account number** — leaked into extracted/categorised/exported CSVs; plus trailing "Charges" tokens and leftover amount tokens from mashed lines. | `clean_description()` strips furniture (account-number headers cut), leading amount tokens, trailing column tokens; applied at extraction, wrapped-line continuation, and legacy CSV load. Existing local data files repaired in place. |
+| 3 | Medium | OpenAI payload sent unsigned amounts with no direction while prompt v2 described signed+tagged amounts → LLM had to guess income vs expense. Also one API call per transaction, and the response echoed date/amount/label (hallucination surface). | Batched calls (25/chunk); payload = index/date/direction/signed amount/description; response = index+category+controllable only; labels local; income/unknown forced non-controllable; failed chunk → Unknown. Client injectable + stub tests. |
+| 4 | Medium | `PUT /api/review` with an empty rows list silently wiped the CSV. | 400 guard. |
+| 5 | Low | Hand-off export of an empty CSV wrote empty request/instructions files. | 400, nothing written. |
+| 6 | Low | "Credit Card" payments classified as money IN via the `credit` keyword fallback. | Explicit credit-card guard → out. |
+| 7 | Low | File-list checkbox ids used raw filenames (spaces → invalid HTML ids, broken labels). | Index-based ids. |
+| 8 | — | Extraction core untestable (needed PDFs). | Split into `extract_transactions_from_text(pages)`; 19 extraction tests + 4 LLM-path tests added (76 total, was 57). |
+
+Known/accepted (not fixed): estimated balance for amount-only mashed rows can
+be wrong (documented fallback); dedup can merge two truly identical same-day
+same-balance transactions (practically impossible); training data may include
+Unknown(0) rows by design (teaches the model to abstain).
+
 ## Log
 
 - **2026-07-06** — UX restructure (77a9247): the app now has two top-level
