@@ -29,9 +29,9 @@ Additionally, classify each transaction as a CONTROLLABLE cost or not (boolean `
   controllable (usage-driven consumption).
 
 Known mappings:
-  - "Fhps Fees"           -> school fees (3), not controllable
-  - "Miway"               -> car insurance (5), not controllable
-  - "Jicamasalariwie8508" -> salary (Income, 10), not controllable
+  - "school fees keyword"   -> school fees (3), not controllable
+  - "car insurer keyword"   -> insurance (5), not controllable
+  - "<SALARY REF>"          -> salary (Income, 10), not controllable
 
 Assign the best-fitting category for every transaction.
 Use 0 (Unknown) only when no category fits or it is too hard to categorise.
